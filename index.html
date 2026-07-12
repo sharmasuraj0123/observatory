@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar Claude · Real-Ephemeris Solar System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪐</text></svg>" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="loading">
+    <div class="load-inner">
+      <div class="load-sun"></div>
+      <h1>SOLAR CLAUDE</h1>
+      <p class="load-sub">Computing planetary ephemerides…</p>
+      <div class="load-bar"><div id="load-fill"></div></div>
+    </div>
+  </div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">Solar Claude</span>
+      <span class="brand-tag">real-ephemeris solar system</span>
+    </div>
+    <div id="sim-date">
+      <span id="date-text"></span>
+      <span id="live-badge" class="live-badge">● LIVE</span>
+      <span id="exp-badge" class="live-badge exp">⚗ EXPERIMENT</span>
+    </div>
+    <div class="top-actions">
+      <button id="btn-help" class="tbtn" title="Help (H)">?</button>
+      <button id="btn-lab" class="tbtn" title="Physics lab (E)">⚗</button>
+      <button id="btn-settings" class="tbtn" title="Display settings">⚙</button>
+    </div>
+  </header>
+
+  <nav id="body-list" class="panel"></nav>
+  <aside id="info-panel" class="panel hidden"></aside>
+  <div id="settings-panel" class="panel hidden"></div>
+  <div id="lab-panel" class="panel hidden"></div>
+  <footer id="timebar" class="panel"></footer>
+  <div id="help-overlay" class="overlay hidden"></div>
+
+  <div id="attribution">
+    Ephemerides: JPL Keplerian elements · Textures: Solar System Scope (CC BY 4.0) · Press H for help
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
