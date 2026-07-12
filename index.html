@@ -23,7 +23,10 @@
     <div class="brand">
       <span class="brand-mark"></span>
       <span class="brand-name">Solar Claude</span>
-      <span class="brand-tag">real-ephemeris solar system</span>
+      <div class="seg tabs" id="tab-switch">
+        <button id="tab-solar" class="active">Solar system</button>
+        <button id="tab-math">Equation lab</button>
+      </div>
     </div>
     <div id="sim-date">
       <span id="date-text"></span>
@@ -41,6 +44,7 @@
   <aside id="info-panel" class="panel hidden"></aside>
   <div id="settings-panel" class="panel hidden"></div>
   <div id="lab-panel" class="panel hidden"></div>
+  <aside id="equation-panel" class="panel hidden"></aside>
   <footer id="timebar" class="panel"></footer>
   <div id="help-overlay" class="overlay hidden"></div>
 

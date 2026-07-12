@@ -460,29 +460,50 @@ export class UI {
   // ---------------- help + keys ----------------
 
   buildHelp() {
+    this.el.help.addEventListener('click', (e) => { if (e.target === this.el.help) this.toggleHelp(); });
+    this.renderHelp();
+  }
+
+  // rendered at open time so the shortcuts match the active tab
+  renderHelp() {
+    const math = this.h.isMath && this.h.isMath();
+    const solarGrid = `
+      <span>Click body / label</span><span>select and fly to it</span>
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Space</span><span>pause time</span>
+      <span>+ / −</span><span>speed up / slow down time</span>
+      <span>0 - 9</span><span>focus Sun, Mercury through Pluto</span>
+      <span>Esc</span><span>release focus, then overview</span>
+      <span>O / L / G</span><span>toggle orbits / labels / grid</span>
+      <span>E</span><span>physics lab (N-body experiments)</span>
+      <span>Tabs</span><span>Equation Lab: type any equation, watch it move</span>
+      <span>H</span><span>this help</span>`;
+    const mathGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Space</span><span>pause / resume equation time τ</span>
+      <span>Esc</span><span>release follow, then reframe the view</span>
+      <span>Type anywhere</span><span>edit expressions; errors show inline</span>
+      <span>Sliders a b c d</span><span>morph parameters while it runs</span>
+      <span>H</span><span>this help</span>`;
+    const sub = math
+      ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
+      : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
+    const tip = math
+      ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
+      : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
-        <h2>Solar Claude</h2>
-        <p class="help-sub">A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).</p>
-        <div class="help-grid">
-          <span>Click body / label</span><span>select and fly to it</span>
-          <span>Drag / scroll</span><span>orbit and zoom</span>
-          <span>Space</span><span>pause time</span>
-          <span>+ / −</span><span>speed up / slow down time</span>
-          <span>0 - 9</span><span>focus Sun, Mercury through Pluto</span>
-          <span>Esc</span><span>release focus, then overview</span>
-          <span>O / L / G</span><span>toggle orbits / labels / grid</span>
-          <span>E</span><span>physics lab (N-body experiments)</span>
-          <span>H</span><span>this help</span>
-        </div>
-        <p class="help-tip">Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize. And "Halley perihelion 2061" in Events still shows the comet growing its tail.</p>
+        <h2>${math ? 'Equation Lab' : 'Solar Claude'}</h2>
+        <p class="help-sub">${sub}</p>
+        <div class="help-grid">${math ? mathGrid : solarGrid}</div>
+        <p class="help-tip">${tip}</p>
       </div>`;
     this.el.help.querySelector('.panel-close').addEventListener('click', () => this.toggleHelp());
-    this.el.help.addEventListener('click', (e) => { if (e.target === this.el.help) this.toggleHelp(); });
   }
 
   toggleHelp() {
+    if (this.el.help.classList.contains('hidden')) this.renderHelp();
     this.el.help.classList.toggle('hidden');
   }
 
@@ -491,6 +512,18 @@ export class UI {
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (this.h.isMath && this.h.isMath()) {
+        // equation-lab keys only; solar shortcuts stay out of the way
+        switch (e.key) {
+          case ' ': e.preventDefault(); if (this.h.mathPlayPause) this.h.mathPlayPause(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.mathEscape) this.h.mathEscape();
+            break;
+        }
+        return;
+      }
       const clock = this.h.clock;
       switch (e.key) {
         case ' ': e.preventDefault(); this.togglePause(); break;
@@ -523,6 +556,14 @@ export class UI {
 
   tick(dt) {
     const clock = this.h.clock;
+    const math = this.h.isMath && this.h.isMath();
+    if (math) {
+      this.el.dateText.textContent = this.h.mathStatus ? this.h.mathStatus() : '';
+      this.el.liveBadge.classList.remove('on');
+      const expBadge = document.getElementById('exp-badge');
+      if (expBadge) expBadge.classList.remove('on');
+      return;
+    }
     this.el.dateText.textContent = fmtDate(clock.date);
     const physics = this.h.isPhysics && this.h.isPhysics();
     this.el.liveBadge.classList.toggle('on', !physics && clock.isLive());

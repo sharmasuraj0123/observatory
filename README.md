@@ -64,6 +64,24 @@ npm run dev     # http://localhost:5174
   reverse Venus, full reset. Moons and the belts stay on rails but their orbital
   rates track the parent's effective GM.
 
+**Equation Lab (second tab)**
+- Type any math equation and watch it move through space + time with the same
+  cinematic pipeline: bloom, fading trails (the trail is the time axis), free
+  camera, live readouts.
+- Four equation classes: parametric curves x(t), y(t), z(t); velocity fields
+  dx/dt = f(x, y, z, t) integrated with RK4; force fields a(x, v, t); and
+  animated surfaces z = f(x, y, t) with a height colormap.
+- A safe expression compiler (whitelisted tokens only) with implicit
+  multiplication: write "10(y - x)" or "a sin(b x + t)". Errors show inline
+  while the last good equation keeps running.
+- Swarms of up to 200 particles with rainbow trails make chaos visible: nearby
+  starting points diverging is the butterfly effect on screen. Parameters a, b,
+  c, d are live sliders; drag them mid-flight to morph the system.
+- Presets: Lorenz, Aizawa, Thomas and Rössler attractors, Lissajous and torus
+  knots, Kepler orbits (the same inverse-square law as the solar tab), charged
+  particle in a magnetic field, anisotropic oscillator, and three animated
+  surfaces (interference ripples, standing waves, an orbiting wave packet).
+
 **Interaction**
 - Click any body or label to fly to it; the camera then rides along with its orbit.
 - Time control from real time up to a year per second, forwards or backwards,

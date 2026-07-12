@@ -12,6 +12,8 @@ import { elementsAt, positionFromElements, orbitalSpeedKms, moonSpeedKms } from 
 import { KM_TO_UNITS, AU_KM, G_KM, DAYS_PER_CENTURY } from './sim/constants.js';
 import { UI } from './ui/ui.js';
 import { LabPanel } from './ui/lab.js';
+import { MathLab } from './math/mathlab.js';
+import { EquationPanel } from './ui/equationPanel.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
 import { PLANETS, DWARFS, SUN, COMET_HALLEY } from './data/bodies.js';
 
@@ -85,7 +87,11 @@ async function init() {
   const stage = createStage(container);
   const { scene, camera, renderer, composer, labelRenderer, controls } = stage;
 
-  const grid = createEclipticGrid(scene);
+  // everything solar lives under one root so the Equation Lab tab can swap it out
+  const solarRoot = new THREE.Group();
+  scene.add(solarRoot);
+
+  const grid = createEclipticGrid(solarRoot);
 
   const clock = new SimClock();
 
@@ -98,11 +104,11 @@ async function init() {
     if (opts.focus && !isDead(rec)) focusCtl.focus(rec);
   };
 
-  const system = new PlanetSystem(scene, getTexture, (id) => select(id, { focus: true }));
-  const sun = new Sun(scene, { sun: getTexture('sun') }, (rec) => system.makeLabel(rec));
-  const comet = new Comet(scene, (rec) => system.makeLabel(rec));
-  const belt = new AsteroidBelt(scene);
-  const kuiper = new KuiperBelt(scene);
+  const system = new PlanetSystem(solarRoot, getTexture, (id) => select(id, { focus: true }));
+  const sun = new Sun(solarRoot, { sun: getTexture('sun') }, (rec) => system.makeLabel(rec));
+  const comet = new Comet(solarRoot, (rec) => system.makeLabel(rec));
+  const belt = new AsteroidBelt(solarRoot);
+  const kuiper = new KuiperBelt(solarRoot);
 
   for (const [id, rec] of system.byId) byId.set(id, rec);
   byId.set('sun', sun);
@@ -129,7 +135,7 @@ async function init() {
   // ---------------- physics lab: N-body experiment mode ----------------
 
   const nbody = new NBodySim();
-  const trails = new TrailSystem(scene);
+  const trails = new TrailSystem(solarRoot);
   const physics = { on: false, trailsOn: true, halleyDestroyed: false, beltExtraDays: 0 };
   const physPositions = new Map(); // id -> heliocentric position, scene units
   const physVecs = new Map();
@@ -270,6 +276,24 @@ async function init() {
     if (ui.selected) ui.showInfo(ui.selected);
   }
 
+  function processNbodyEvents(events) {
+    for (const ev of events) {
+      labPanel.log(`${ev.lostName} was absorbed by ${ev.intoName}.`);
+      if (ev.lost === 'halley') {
+        physics.halleyDestroyed = true;
+        comet.pick.layers.set(2);
+        if (focusCtl.target === comet) focusCtl.release();
+      } else {
+        const r = byId.get(ev.lost);
+        if (r) {
+          r.destroyed = true;
+          setBodyPickable(r, false);
+          if (focusCtl.target === r) focusCtl.release();
+        }
+      }
+    }
+  }
+
   // gravity / state readout for the info panel, in either mode
   function gravityReport(id) {
     const target = byId.get(id);
@@ -355,6 +379,93 @@ async function init() {
     };
   }
 
+  // ---------------- equation lab tab ----------------
+
+  const mathlab = new MathLab(scene);
+  const tabState = { mode: 'solar', solarCam: null, mathCam: null };
+
+  const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
+
+  function setMode(mode) {
+    if (mode === tabState.mode) return;
+    const saved = { pos: camera.position.clone(), target: controls.target.clone() };
+    if (tabState.mode === 'solar') tabState.solarCam = saved;
+    else tabState.mathCam = saved;
+    tabState.mode = mode;
+    const isMath = mode === 'math';
+
+    focusCtl.release();
+    focusCtl.anim = null;
+    solarRoot.visible = !isMath;
+    mathlab.group.visible = isMath;
+
+    // the N-body experiment does not integrate while the math tab is open but
+    // solar time keeps flowing; catch it up (or re-seed after a long gap)
+    if (isMath) {
+      physics.lastSolarD = clock.daysSinceJ2000;
+    } else if (physics.on) {
+      const gap = clock.daysSinceJ2000 - (physics.lastSolarD ?? clock.daysSinceJ2000);
+      if (Math.abs(gap) > 60) {
+        seedPhysics(true);
+        labPanel.log('Long stay in the Equation Lab: experiment re-seeded.');
+      } else if (Math.abs(gap) > 1e-6) {
+        const gapSec = gap * 86400;
+        const { events, consumedSec } = nbody.step(gapSec);
+        // same contract as the main loop: displayed time never outruns physics
+        if (Math.abs(gapSec - consumedSec) > 1e-3) {
+          clock.simMs -= (gapSec - consumedSec) * 1000;
+        }
+        processNbodyEvents(events);
+      }
+    }
+
+    document.getElementById('body-list').classList.toggle('hidden', isMath);
+    document.getElementById('timebar').classList.toggle('hidden', isMath);
+    document.getElementById('equation-panel').classList.toggle('hidden', !isMath);
+    document.getElementById('btn-lab').classList.toggle('hidden', isMath);
+    document.getElementById('btn-settings').classList.toggle('hidden', isMath);
+    document.getElementById('settings-panel').classList.add('hidden');
+    document.getElementById('lab-panel').classList.add('hidden');
+    renderer.domElement.style.cursor = 'default';
+    if (isMath) ui.closeInfo();
+    document.getElementById('tab-solar').classList.toggle('active', !isMath);
+    document.getElementById('tab-math').classList.toggle('active', isMath);
+
+    const restore = isMath ? tabState.mathCam : tabState.solarCam;
+    if (restore) {
+      camera.position.copy(restore.pos);
+      controls.target.copy(restore.target);
+    } else if (isMath) {
+      camera.position.copy(MATH_HOME.pos);
+      controls.target.copy(MATH_HOME.target);
+    }
+    focusCtl.baseMinDistance = isMath ? 0.6 : 0.2;
+    controls.minDistance = focusCtl.baseMinDistance;
+    controls.maxDistance = isMath ? 3000 : 250000;
+  }
+
+  document.getElementById('tab-solar').addEventListener('click', () => setMode('solar'));
+  document.getElementById('tab-math').addEventListener('click', () => setMode('math'));
+
+  const eqPanel = new EquationPanel(mathlab, {
+    frameView: (cam) => {
+      if (tabState.mode !== 'math') return; // never steer the solar camera
+      const pos = cam ? new THREE.Vector3(...cam.pos) : MATH_HOME.pos;
+      const target = cam ? new THREE.Vector3(...cam.target) : MATH_HOME.target;
+      focusCtl.overview(pos, target);
+    },
+    followParticle: () => focusCtl.focus(mathlab.focusRec),
+  });
+
+  // a diverged particle 0 respawns across the scene; re-anchor the follow
+  // camera after its worldPos is refreshed so it does not teleport violently
+  mathlab.onP0Respawn = () => {
+    if (focusCtl.target === mathlab.focusRec) {
+      focusCtl.prevBodyPos.copy(mathlab.focusRec.worldPos);
+      focusCtl.anim = null;
+    }
+  };
+
   // ---------------- UI ----------------
 
   const ui = new UI({
@@ -395,6 +506,13 @@ async function init() {
       document.getElementById('settings-panel').classList.add('hidden');
       labPanel.toggle();
     },
+    isMath: () => tabState.mode === 'math',
+    mathStatus: () => mathlab.status(),
+    mathPlayPause: () => eqPanel.togglePlay(),
+    mathEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else eqPanel.h.frameView(eqPanel.cfg && eqPanel.cfg.camera);
+    },
   });
 
   const labPanel = new LabPanel({
@@ -427,6 +545,7 @@ async function init() {
 
   renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
   renderer.domElement.addEventListener('pointerup', (e) => {
+    if (tabState.mode !== 'solar') return;
     if (!downAt) return;
     const dx = e.clientX - downAt[0], dy = e.clientY - downAt[1];
     downAt = null;
@@ -437,6 +556,7 @@ async function init() {
     if (hits.length) select(hits[0].object.userData.rec.def.id, { focus: true });
   });
   renderer.domElement.addEventListener('pointermove', (e) => {
+    if (tabState.mode !== 'solar') return;
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     renderer.domElement.style.cursor = raycaster.intersectObjects(pickables, false).length ? 'pointer' : 'default';
@@ -454,6 +574,19 @@ async function init() {
     const prevD = clock.daysSinceJ2000;
     clock.advance(dt);
     const dNow = clock.daysSinceJ2000;
+
+    // Equation Lab tab: the solar system is hidden and skips its updates
+    // (solar time still flows); the math scene runs on its own clock tau
+    if (tabState.mode === 'math') {
+      mathlab.update(dt);
+      eqPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      return;
+    }
 
     if (Math.abs(scaleCur - scaleTarget) > Math.max(scaleTarget, 1) * 0.002) {
       scaleCur += (scaleTarget - scaleCur) * Math.min(1, dt * 5);
@@ -476,21 +609,7 @@ async function init() {
       if (Math.abs(stepSec - consumedSec) > 1e-3) {
         clock.simMs -= (stepSec - consumedSec) * 1000;
       }
-      for (const ev of events) {
-        labPanel.log(`${ev.lostName} was absorbed by ${ev.intoName}.`);
-        if (ev.lost === 'halley') {
-          physics.halleyDestroyed = true;
-          comet.pick.layers.set(2);
-          if (focusCtl.target === comet) focusCtl.release();
-        } else {
-          const r = byId.get(ev.lost);
-          if (r) {
-            r.destroyed = true;
-            setBodyPickable(r, false);
-            if (focusCtl.target === r) focusCtl.release();
-          }
-        }
-      }
+      processNbodyEvents(events);
 
       const s0 = nbody.state('sun');
       physPositions.clear();
@@ -554,7 +673,7 @@ async function init() {
   setTimeout(() => loading.remove(), 900);
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode };
 }
 
 init();

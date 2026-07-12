@@ -393,6 +393,108 @@ html, body {
   opacity: 0.8;
 }
 
+/* ---------- topbar tabs ---------- */
+
+.tabs {
+  padding: 0;
+  margin-left: 18px;
+  align-self: center;
+}
+.tabs button {
+  padding: 6px 14px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- equation lab ---------- */
+
+#equation-panel {
+  top: 64px;
+  right: 16px;
+  width: 330px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-bottom: 16px;
+  z-index: 30;
+}
+
+.eq-presets { grid-template-columns: 1fr 1fr; }
+.eq-presets .btn.active,
+.preset-grid .btn.active {
+  background: rgba(255, 180, 84, 0.16);
+  border-color: rgba(255, 190, 110, 0.45);
+  color: var(--accent);
+}
+.eq-types { flex-wrap: wrap; }
+.eq-types button { flex: 1 1 40%; }
+
+.eq-exprs { padding: 10px 16px 2px; }
+.expr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.expr-label {
+  font-size: 12px;
+  color: var(--accent-cool);
+  font-weight: 600;
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.expr-input {
+  flex: 1;
+  background: rgba(16, 24, 42, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.expr-input:focus { border-color: rgba(255, 190, 110, 0.45); }
+
+.eq-error {
+  margin: 4px 16px 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 90, 60, 0.12);
+  border: 1px solid rgba(255, 120, 90, 0.35);
+  color: #ff9d7a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.eq-params { padding: 6px 16px 2px; }
+.param-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 52px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.param-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  font-style: italic;
+}
+.param-val {
+  font-size: 11px;
+  color: var(--accent-cool);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-actions { padding: 10px 16px 2px; margin-top: 0; }
+#eq-state { margin: 10px 16px 0; }
+.eq-desc { border-top: 1px solid var(--panel-border); margin-top: 10px; padding-top: 10px; }
+.eq-help { opacity: 0.6; }
+
 /* ---------- physics lab ---------- */
 
 #lab-panel {

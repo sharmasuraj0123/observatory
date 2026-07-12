@@ -20,6 +20,7 @@ export class FocusController {
     this.anim = null;
     this.prevBodyPos = new THREE.Vector3();
     this.onChange = null;
+    this.baseMinDistance = 0.2; // the unfocused floor, owned by the active tab
   }
 
   focus(rec) {
@@ -41,15 +42,15 @@ export class FocusController {
     if (this.onChange) this.onChange(null);
   }
 
-  overview() {
+  overview(pos, target) {
     this.target = null;
     this.anim = {
       t: 0,
       dur: 1.6,
       fromPos: this.camera.position.clone(),
       fromTarget: this.controls.target.clone(),
-      staticPos: new THREE.Vector3(-1400, 1600, 3400),
-      staticTarget: new THREE.Vector3(0, 0, 0),
+      staticPos: pos ? pos.clone() : new THREE.Vector3(-1400, 1600, 3400),
+      staticTarget: target ? target.clone() : new THREE.Vector3(0, 0, 0),
     };
     if (this.onChange) this.onChange(null);
   }
@@ -83,6 +84,8 @@ export class FocusController {
       this.controls.target.copy(bp);
       this.prevBodyPos.copy(bp);
     }
-    this.controls.minDistance = this.target ? Math.max(this.target.visualRadius * 1.25, 0.02) : 0.2;
+    this.controls.minDistance = this.target
+      ? Math.max(this.target.visualRadius * 1.25, 0.02)
+      : this.baseMinDistance;
   }
 }

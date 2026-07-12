@@ -3,17 +3,18 @@
 
 import * as THREE from 'three';
 
-const MAX = 1400;
-
 export class TrailSystem {
-  constructor(scene) {
+  constructor(scene, maxPoints = 1400, opacity = 0.9) {
     this.scene = scene;
+    this.max = maxPoints;
+    this.opacity = opacity;
     this.trails = new Map();
   }
 
   ensure(id, color) {
     let t = this.trails.get(id);
     if (t) return t;
+    const MAX = this.max;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
@@ -21,7 +22,7 @@ export class TrailSystem {
     const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.9,
+      opacity: this.opacity,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     }));
@@ -42,6 +43,7 @@ export class TrailSystem {
 
   push(id, pos, color) {
     const t = this.ensure(id, color);
+    const MAX = this.max;
     // sample density scales with orbit size so one buffer covers roughly a lap
     const thr = Math.max(0.35, pos.length() * 0.005);
     if (t.count && t.last.distanceTo(pos) < thr) return;
@@ -55,6 +57,7 @@ export class TrailSystem {
   }
 
   update() {
+    const MAX = this.max;
     for (const t of this.trails.values()) {
       if (!t.dirty) continue;
       t.dirty = false;
@@ -84,6 +87,15 @@ export class TrailSystem {
       t.last.set(1e12, 0, 0);
       t.geo.setDrawRange(0, 0);
     }
+  }
+
+  clearOne(id) {
+    const t = this.trails.get(id);
+    if (!t) return;
+    t.count = 0;
+    t.head = 0;
+    t.last.set(1e12, 0, 0);
+    t.geo.setDrawRange(0, 0);
   }
 
   setVisible(v) {
