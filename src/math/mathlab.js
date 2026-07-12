@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { TrailSystem } from '../scene/trails.js';
+import { softDotTexture } from '../scene/setup.js';
 import { compileExpr } from './expr.js';
 
 const MAX_PARTICLES = 200;
@@ -56,6 +57,7 @@ export class MathLab {
     this.tau = 0;
     this.playing = true;
     this.speedMul = 1;
+    this.direction = 1; // +1 forward, -1 reverse
     this.respawns = 0;
     this.effRate = null;
     this.p0Respawned = false;
@@ -69,6 +71,9 @@ export class MathLab {
     this.colors = [];
 
     this.surface = null;
+    this.data = null; // plotted dataset overlay
+    this.layers = []; // frozen superposition layers
+    this.actLayers = []; // layers matching the current type, cached per frame
 
     this.particleSize = 0.55;
     this.labelsOn = true;
@@ -265,13 +270,19 @@ export class MathLab {
   }
 
   // dtReal: wall-clock seconds elapsed this frame
+  toggleDirection() {
+    this.direction *= -1;
+  }
+
   update(dtReal) {
     if (!this.cfg || !this.compiled) return;
-    let dtEq = this.playing ? dtReal * (this.cfg.speed || 1) * this.speedMul : 0;
+    this.refreshActiveLayers();
+    let dtEq = this.playing ? dtReal * (this.cfg.speed || 1) * this.speedMul * this.direction : 0;
 
     if (this.cfg.type === 'surface') {
       this.tau += dtEq;
       this.updateSurface();
+      this.updateTracer();
       return;
     }
 
@@ -295,6 +306,7 @@ export class MathLab {
       }
     }
     this.projectParticles();
+    this.updateTracer();
     if (dtEq !== 0) this.recordHistory();
     if (this.p0Respawned) {
       this.p0Respawned = false;
@@ -325,6 +337,13 @@ export class MathLab {
     out[0] = this.compiled.x(v);
     out[1] = this.compiled.y(v);
     out[2] = this.compiled.z(v);
+    for (const L of this.actLayers) {
+      const lv = L.v;
+      lv.x = x; lv.y = y; lv.z = z; lv.t = t;
+      out[0] += L.weight * L.fns.x(lv);
+      out[1] += L.weight * L.fns.y(lv);
+      out[2] += L.weight * L.fns.z(lv);
+    }
   }
 
   rk4Ode(i, h) {
@@ -352,6 +371,15 @@ export class MathLab {
     out[3] = this.compiled.x(v);
     out[4] = this.compiled.y(v);
     out[5] = this.compiled.z(v);
+    for (const L of this.actLayers) {
+      const lv = L.v;
+      lv.x = st[0]; lv.y = st[1]; lv.z = st[2];
+      lv.vx = st[3]; lv.vy = st[4]; lv.vz = st[5];
+      lv.t = t;
+      out[3] += L.weight * L.fns.x(lv);
+      out[4] += L.weight * L.fns.y(lv);
+      out[5] += L.weight * L.fns.z(lv);
+    }
   }
 
   rk4Force(i, h) {
@@ -375,6 +403,7 @@ export class MathLab {
   projectParticles() {
     const cfg = this.cfg;
     const scale = cfg.scale || 1;
+    const off = cfg.offset || null; // math-space center, e.g. from a data fit
     const chain = cfg.chainOffset || 0.1;
     const size = this.particleSize;
     for (let i = 0; i < this.n; i++) {
@@ -385,11 +414,20 @@ export class MathLab {
         mx = this.compiled.x(v);
         my = this.compiled.y(v);
         mz = this.compiled.z(v);
+        // superposition: positions add across active layers
+        for (const L of this.actLayers) {
+          const lv = L.v;
+          lv.t = v.t;
+          mx += L.weight * L.fns.x(lv);
+          my += L.weight * L.fns.y(lv);
+          mz += L.weight * L.fns.z(lv);
+        }
         if (!Number.isFinite(mx + my + mz)) { mx = 0; my = 0; mz = 0; }
       } else {
         const j = i * 6;
         mx = this.states[j]; my = this.states[j + 1]; mz = this.states[j + 2];
       }
+      if (off) { mx -= off[0]; my -= off[1]; mz -= off[2]; }
       // math z-up -> scene: (x, y, z) -> (X, -Z, Y)
       const sx = mx * scale, sy = mz * scale, sz = -my * scale;
       this.dummy.position.set(sx, sy, sz);
@@ -405,6 +443,25 @@ export class MathLab {
       }
     }
     this.particlesMesh.instanceMatrix.needsUpdate = true;
+
+    // faint markers trace each parametric component so the ingredients of the
+    // superposition stay visible next to the combined path
+    if (cfg.type === 'parametric' && this.actLayers.length) {
+      for (let li = 0; li < this.layers.length; li++) {
+        const L = this.layers[li];
+        if (!L.marker || !this.actLayers.includes(L)) continue;
+        const lv = L.v;
+        lv.t = this.tau;
+        let cx = L.weight * L.fns.x(lv);
+        let cy = L.weight * L.fns.y(lv);
+        let cz = L.weight * L.fns.z(lv);
+        if (off) { cx -= off[0]; cy -= off[1]; cz -= off[2]; }
+        if (!Number.isFinite(cx + cy + cz)) { cx = 0; cy = 0; cz = 0; }
+        L.marker.position.set(cx * scale, cz * scale, -cy * scale);
+        L.marker.scale.setScalar(this.particleSize * 0.8);
+        this.trails.push('layer' + li, L.marker.position, L.color);
+      }
+    }
     this.trails.update();
   }
 
@@ -425,7 +482,13 @@ export class MathLab {
     const integrated = this.cfg.type === 'ode' || this.cfg.type === 'force';
     if (integrated) {
       if (!this.history.length) return [this.tau, this.tau];
-      return [this.history[0].tau, Math.max(this.history[this.history.length - 1].tau, this.tau)];
+      // reverse play makes history non-monotonic; scan for the true extent
+      let lo = this.tau, hi = this.tau;
+      for (const e of this.history) {
+        if (e.tau < lo) lo = e.tau;
+        if (e.tau > hi) hi = e.tau;
+      }
+      return [lo, hi];
     }
     return [this.tau - PARAM_SCRUB_SPAN, this.tau];
   }
@@ -467,6 +530,7 @@ export class MathLab {
     const v = this.scope;
     v.t = this.tau;
     const zfn = this.compiled.z;
+    const act = this.actLayers;
     let zMin = Infinity, zMax = -Infinity;
     const count = pos.count;
     const arr = pos.array;
@@ -474,6 +538,12 @@ export class MathLab {
       v.x = arr[i * 3];
       v.y = -arr[i * 3 + 2];
       let z = zfn(v);
+      // wave superposition: heights add across active layers
+      for (const L of act) {
+        const lv = L.v;
+        lv.x = v.x; lv.y = v.y; lv.t = v.t;
+        z += L.weight * L.fns.z(lv);
+      }
       if (!Number.isFinite(z)) z = 0;
       arr[i * 3 + 1] = z;
       if (z < zMin) zMin = z;
@@ -494,12 +564,207 @@ export class MathLab {
     col.needsUpdate = true;
   }
 
+  // ---------------- superposition layers ----------------
+
+  // Freeze a config snapshot as an additive layer. Parameter values are baked
+  // into a layer-local scope, so later slider moves on the live equation do
+  // not disturb frozen layers. Throws if the expressions fail to compile.
+  addLayer(cfg) {
+    if (this.layers.length >= 6) throw new Error('Layer stack is full (6 max)');
+    const paramNames = Object.keys(cfg.params || {});
+    const vars = [...this.varsForType(cfg.type), ...paramNames];
+    const fns = {};
+    if (cfg.type === 'surface') {
+      fns.z = compileExpr(cfg.exprs.z, vars);
+    } else {
+      fns.x = compileExpr(cfg.exprs.x, vars);
+      fns.y = compileExpr(cfg.exprs.y, vars);
+      fns.z = compileExpr(cfg.exprs.z, vars);
+    }
+    const v = { t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
+    for (const [k, p] of Object.entries(cfg.params || {})) v[k] = p.value;
+
+    const LAYER_COLORS = [0xffca7a, 0x6fe08a, 0xff8d6a, 0x86b7ff, 0xd78cff, 0x7ae8d8];
+    const layer = {
+      name: cfg.name || 'Layer',
+      type: cfg.type,
+      weight: 1,
+      fns,
+      v,
+      color: LAYER_COLORS[this.layers.length % LAYER_COLORS.length],
+      marker: null,
+      // source snapshot so version-control commits can rebuild this layer
+      src: {
+        name: cfg.name || 'Layer',
+        type: cfg.type,
+        exprs: { ...cfg.exprs },
+        params: Object.fromEntries(Object.entries(cfg.params || {}).map(([k, p]) => [k, { value: p.value }])),
+      },
+    };
+    if (cfg.type === 'parametric') {
+      layer.marker = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 10, 8),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(layer.color).multiplyScalar(1.5),
+          transparent: true,
+          opacity: 0.8,
+        })
+      );
+      this.group.add(layer.marker);
+    }
+    this.layers.push(layer);
+    return layer;
+  }
+
+  removeLayer(index) {
+    const L = this.layers[index];
+    if (!L) return;
+    if (L.marker) this.group.remove(L.marker);
+    this.trails.clearOne('layer' + index);
+    this.layers.splice(index, 1);
+    // trail ids shift with indices; drop them all and let them rebuild
+    for (let i = 0; i < 8; i++) this.trails.clearOne('layer' + i);
+  }
+
+  clearLayers() {
+    for (const L of this.layers) if (L.marker) this.group.remove(L.marker);
+    for (let i = 0; i < 8; i++) this.trails.clearOne('layer' + i);
+    this.layers.length = 0;
+  }
+
+  setLayerWeight(index, w) {
+    if (this.layers[index]) this.layers[index].weight = w;
+  }
+
+  refreshActiveLayers() {
+    this.actLayers = this.cfg
+      ? this.layers.filter((L) => L.type === this.cfg.type)
+      : [];
+    for (const L of this.layers) {
+      if (L.marker) L.marker.visible = this.actLayers.includes(L);
+    }
+  }
+
+  // ---------------- dataset overlay ----------------
+
+  // pts: [{t, x, y, z}] in original data units, t measured from 0.
+  // Displays scaled + centered markers, a time-gradient path, and a tracer
+  // that replays the path as tau advances. Returns the display transform so
+  // fitted equations can be overlaid with the same scale and offset.
+  setDataset(pts) {
+    this.clearDataset();
+
+    // display transform: center the cloud, fit it into ~44 units
+    let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (const p of pts) {
+      const v = [p.x, p.y, p.z];
+      for (let k = 0; k < 3; k++) {
+        if (v[k] < min[k]) min[k] = v[k];
+        if (v[k] > max[k]) max[k] = v[k];
+      }
+    }
+    const center = [0, 1, 2].map((k) => (min[k] + max[k]) / 2);
+    const extent = Math.max(...[0, 1, 2].map((k) => max[k] - min[k]), 1e-9);
+    const scale = 44 / extent;
+    const span = Math.max(pts[pts.length - 1].t - pts[0].t, 1e-9);
+
+    const group = new THREE.Group();
+    const toScene = (p, out) => out.set(
+      (p.x - center[0]) * scale,
+      (p.z - center[2]) * scale,
+      -(p.y - center[1]) * scale
+    );
+
+    // markers colored early (blue) to late (amber)
+    const pos = new Float32Array(pts.length * 3);
+    const col = new Float32Array(pts.length * 3);
+    const c0 = new THREE.Color(0x3a6bd8);
+    const c1 = new THREE.Color(0xffca7a);
+    const tmp = new THREE.Vector3();
+    const cc = new THREE.Color();
+    for (let i = 0; i < pts.length; i++) {
+      toScene(pts[i], tmp);
+      pos.set([tmp.x, tmp.y, tmp.z], i * 3);
+      cc.copy(c0).lerp(c1, pts[i].t / span);
+      col.set([cc.r, cc.g, cc.b], i * 3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const markers = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: softDotTexture(),
+      size: 2.2,
+      sizeAttenuation: true,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    group.add(markers);
+
+    const path = new THREE.Line(geo, new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.45,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }));
+    group.add(path);
+
+    const tracer = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 14, 10),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.2, 2.6) })
+    );
+    group.add(tracer);
+
+    const label = document.createElement('div');
+    label.className = 'body-label small';
+    label.innerHTML = '<span class="label-dot" style="background:#cfe0ff;box-shadow:0 0 6px #cfe0ff"></span><span class="label-name">data</span>';
+    const labelObj = new CSS2DObject(label);
+    tracer.add(labelObj);
+
+    this.group.add(group);
+    this.data = { pts, span, center, scale, group, tracer, toScene };
+    this.updateTracer();
+    return { center, scale, span };
+  }
+
+  clearDataset() {
+    if (!this.data) return;
+    this.group.remove(this.data.group);
+    this.trails.clearOne('tracer');
+    this.data = null;
+  }
+
+  updateTracer() {
+    const d = this.data;
+    if (!d) return;
+    // replay loops over the recorded time span, in either direction
+    const local = ((this.tau % d.span) + d.span) % d.span;
+    const pts = d.pts;
+    let lo = 0, hi = pts.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (pts[mid].t <= local) lo = mid;
+      else hi = mid;
+    }
+    const a = pts[lo], b = pts[hi];
+    const f = (local - a.t) / Math.max(b.t - a.t, 1e-9);
+    const pa = d.toScene(a, this._trA || (this._trA = new THREE.Vector3()));
+    const pb = d.toScene(b, this._trB || (this._trB = new THREE.Vector3()));
+    d.tracer.position.copy(pa).lerp(pb, Math.min(Math.max(f, 0), 1));
+    d.tracer.scale.setScalar(this.particleSize * 1.3);
+    this.trails.push('tracer', d.tracer.position, 0xcfe0ff);
+    this.trails.update();
+  }
+
   status() {
     if (!this.cfg) return '';
     const nominal = (this.cfg.speed || 1) * this.speedMul;
     const isIntegrated = this.cfg.type === 'ode' || this.cfg.type === 'force';
-    const rate = isIntegrated && this.effRate !== null ? this.effRate : nominal;
-    return `τ = ${this.tau.toFixed(2)} · ${this.playing ? `${rate.toFixed(2)} τ/s` : 'paused'}`;
+    const rate = (isIntegrated && this.effRate !== null ? this.effRate : nominal) * this.direction;
+    const rateStr = `${rate < 0 ? '−' : ''}${Math.abs(rate).toFixed(2)} τ/s`;
+    return `τ = ${this.tau.toFixed(2)} · ${this.playing ? rateStr : 'paused'}`;
   }
 
   particleInfo() {

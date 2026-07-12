@@ -81,6 +81,28 @@ npm run dev     # http://localhost:5174
   knots, Kepler orbits (the same inverse-square law as the solar tab), charged
   particle in a magnetic field, anisotropic oscillator, and three animated
   surfaces (interference ripples, standing waves, an orbiting wave packet).
+- Transport controls: play/pause, reverse time (R), a timeline scrubber backed
+  by up to 600 recorded state snapshots (drag back to any moment; integrated
+  systems restore their exact state and re-integrate from there), reference
+  labels P1 to P8 (click one to follow that particle), a particle size slider,
+  and PNG snapshots (S) from any tab.
+- Data fit: paste a dataset ([t,] x [, y [, z]]), see it plotted colored from
+  early to late with a tracer replaying the path over time, and get a rough
+  equation guess per axis (least-squares search over lines, polynomials,
+  sinusoids, damped sinusoids and exponentials with R² reported). One click
+  overlays the fitted equation on the data for comparison.
+- Version history: a git-style Commit button snapshots the entire lab state
+  (equation, parameters, superposition layers, dataset, camera) with a rendered
+  thumbnail and an optional message. Commits chain to their parent with short
+  hashes, show a diff against the parent (changed expressions, parameter values,
+  layer counts), and Checkout restores any version exactly. Up to 40 commits
+  persist in the browser via localStorage.
+- Superposition: freeze any equation as a weighted layer and stack up to six.
+  Same-type layers add: positions for parametric curves (epicycles, beats,
+  Fourier-style composition, with faint markers tracing each component),
+  vector fields for velocity / force systems (particles travel together under
+  the blended field, e.g. Lorenz morphing into Thomas), and heights for
+  surfaces (literal wave interference). Weights are live sliders.
 
 **Earth Lab (third tab)**
 - A true-scale cutaway of Earth: inner core, outer core, lower and upper mantle

@@ -487,9 +487,13 @@ export class UI {
     const mathGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
       <span>Space</span><span>pause / resume equation time τ</span>
+      <span>R</span><span>reverse time</span>
+      <span>Timeline</span><span>drag the scrubber to any recorded moment</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>Data fit</span><span>paste a dataset, plot it, guess its equation</span>
+      <span>Superposition</span><span>freeze equations as layers; same-type layers add</span>
+      <span>Commit</span><span>version-control the lab state, git-style, with thumbnails</span>
       <span>Esc</span><span>release follow, then reframe the view</span>
-      <span>Type anywhere</span><span>edit expressions; errors show inline</span>
-      <span>Sliders a b c d</span><span>morph parameters while it runs</span>
       <span>H</span><span>this help</span>`;
     const earthGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -533,6 +537,7 @@ export class UI {
         // equation-lab keys only; solar shortcuts stay out of the way
         switch (e.key) {
           case ' ': e.preventDefault(); if (this.h.mathPlayPause) this.h.mathPlayPause(); break;
+          case 'r': case 'R': if (this.h.mathReverse) this.h.mathReverse(); break;
           case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
           case 'h': case 'H': case '?': this.toggleHelp(); break;
           case 'Escape':

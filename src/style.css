@@ -492,6 +492,133 @@ html, body {
 
 .eq-actions { padding: 10px 16px 2px; margin-top: 0; }
 #eq-state { margin: 10px 16px 0; }
+
+/* data fit section */
+.eq-data { border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); margin: 8px 0 2px; }
+.eq-data > summary {
+  cursor: pointer;
+  list-style: none;
+  padding-right: 16px;
+}
+.eq-data > summary::before { content: '▸ '; color: var(--accent); }
+.eq-data[open] > summary::before { content: '▾ '; }
+.eq-data a { color: var(--accent-cool); }
+#eq-data-text {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 6px 16px 8px;
+  min-height: 108px;
+  resize: vertical;
+  background: rgba(16, 24, 42, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  outline: none;
+}
+#eq-data-text:focus { border-color: rgba(255, 190, 110, 0.45); }
+.eq-data-row { padding: 0 16px; }
+#eq-data-format {
+  width: 100%;
+  background: rgba(30, 40, 64, 0.6);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.eq-data-actions { padding: 8px 16px 4px; }
+.eq-data-actions .btn:disabled { opacity: 0.4; cursor: default; }
+#eq-fit-result { margin: 8px 16px 10px; }
+#eq-fit-result:empty { display: none; }
+.fit-meta { color: var(--text-dim); font-size: 10px; }
+#mt-rev.active {
+  background: rgba(255, 180, 84, 0.16);
+  border-color: rgba(255, 190, 110, 0.45);
+  color: var(--accent);
+}
+
+/* superposition stack */
+.eq-stack-actions { padding: 4px 16px 2px; }
+.eq-stack-list { padding: 4px 16px 0; }
+.stack-row {
+  display: grid;
+  grid-template-columns: 10px minmax(60px, auto) auto 1fr 44px 18px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 7px;
+  font-size: 11.5px;
+}
+.stack-row.inactive { opacity: 0.4; }
+.stack-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack-type { font-size: 9.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.stack-w { color: var(--accent-cool); font-variant-numeric: tabular-nums; text-align: right; }
+.stack-x {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+}
+.stack-x:hover { color: #ff8d6a; }
+
+/* version history */
+.eq-history { border-bottom: 1px solid var(--panel-border); margin: 4px 0 2px; }
+.eq-history > summary { cursor: pointer; list-style: none; padding-right: 16px; }
+.eq-history > summary::before { content: '▸ '; color: var(--accent); }
+.eq-history[open] > summary::before { content: '▾ '; }
+.eq-commit-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px 8px;
+}
+#eq-commit-msg {
+  flex: 1;
+  background: rgba(16, 24, 42, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 11.5px;
+  padding: 6px 10px;
+  outline: none;
+  font-family: inherit;
+}
+#eq-commit-msg:focus { border-color: rgba(255, 190, 110, 0.45); }
+.eq-history-list { padding: 2px 16px 10px; max-height: 320px; overflow-y: auto; }
+.commit-card {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: rgba(30, 40, 64, 0.35);
+  border: 1px solid rgba(140, 170, 255, 0.08);
+  border-radius: 10px;
+}
+.commit-card.head { border-color: rgba(255, 190, 110, 0.45); }
+.commit-thumb {
+  width: 84px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #05070d;
+}
+.commit-thumb.empty { display: block; }
+.commit-msg { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.commit-meta {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 2px;
+}
+.commit-meta b { color: var(--accent); }
+.commit-diff { font-size: 10px; color: var(--accent-cool); margin-bottom: 6px; }
+.commit-actions { display: flex; gap: 8px; align-items: center; }
 .eq-labels-toggle { padding: 8px 0 0; font-size: 11.5px; color: var(--text-dim); }
 
 /* math timeline bar mirrors the solar timebar */

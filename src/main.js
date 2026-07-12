@@ -493,6 +493,25 @@ async function init() {
     },
     followParticle: () => focusCtl.focus(mathlab.focusRec),
     snapshot: () => snapshot(),
+    // small JPEG of the current render, for version-history commit cards
+    captureThumb: () => {
+      composer.render();
+      const src = renderer.domElement;
+      const w = 280;
+      const h = Math.max(1, Math.round((src.height / src.width) * w));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(src, 0, 0, w, h);
+      return cv.toDataURL('image/jpeg', 0.7);
+    },
+    getCamera: () => ({ pos: camera.position.toArray(), target: controls.target.toArray() }),
+    setCamera: (c) => {
+      if (!c || !c.pos || !c.target) return;
+      focusCtl.release();
+      focusCtl.anim = null;
+      camera.position.fromArray(c.pos);
+      controls.target.fromArray(c.target);
+    },
   });
   mathlab.onFollowRequest = () => focusCtl.focus(mathlab.focusRec);
 
@@ -558,6 +577,7 @@ async function init() {
     isMath: () => tabState.mode === 'math',
     mathStatus: () => mathlab.status(),
     mathPlayPause: () => eqPanel.togglePlay(),
+    mathReverse: () => eqPanel.toggleReverse(),
     snapshot: () => snapshot(),
     mathEscape: () => {
       if (focusCtl.target) focusCtl.release();
