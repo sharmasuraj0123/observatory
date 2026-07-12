@@ -207,12 +207,17 @@ export class UI {
       <div class="btn-row">
         <button class="btn primary" id="btn-refocus">Focus camera</button>
         <button class="btn" id="btn-overview">Overview</button>
+        ${rec.def.id === 'earth' ? '<button class="btn earth-lab-btn" id="btn-earthlab">🌍 Earth Lab</button>' : ''}
       </div>`;
 
     this.el.info.classList.remove('hidden');
     this.el.info.querySelector('.panel-close').addEventListener('click', () => this.closeInfo());
     this.el.info.querySelector('#btn-refocus').addEventListener('click', () => this.h.focus(rec.def.id));
     this.el.info.querySelector('#btn-overview').addEventListener('click', () => this.h.overview());
+    const earthBtn = this.el.info.querySelector('#btn-earthlab');
+    if (earthBtn && this.h.openEarthLab) {
+      earthBtn.addEventListener('click', () => this.h.openEarthLab());
+    }
     this.el.info.querySelectorAll('.chip').forEach((c) =>
       c.addEventListener('click', () => this.h.select(c.dataset.id, { focus: true })));
 
@@ -467,6 +472,7 @@ export class UI {
   // rendered at open time so the shortcuts match the active tab
   renderHelp() {
     const math = this.h.isMath && this.h.isMath();
+    const earth = this.h.isEarth && this.h.isEarth();
     const solarGrid = `
       <span>Click body / label</span><span>select and fly to it</span>
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -485,18 +491,29 @@ export class UI {
       <span>Type anywhere</span><span>edit expressions; errors show inline</span>
       <span>Sliders a b c d</span><span>morph parameters while it runs</span>
       <span>H</span><span>this help</span>`;
+    const earthGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Click a layer</span><span>inspect core, mantle, crust, fields</span>
+      <span>Space</span><span>pause / resume the mooring simulation</span>
+      <span>Esc</span><span>reframe the view</span>
+      <span>Sliders</span><span>every mooring parameter is live</span>
+      <span>H</span><span>this help</span>`;
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
-      : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
+      : earth
+        ? 'Earth Lab: a true-scale cutaway of the planet (PREM layer radii, dipole field lines) and a live Single Point Mooring simulation solved with quasi-static catenary mechanics.'
+        : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
-      : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
+      : earth
+        ? 'Try it: in SPM mooring, raise the wind to 30 m/s and watch the upwind chains lift off the seabed, the touchdown points race toward the piles and the tension table go amber.'
+        : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
-        <h2>${math ? 'Equation Lab' : 'Solar Claude'}</h2>
+        <h2>${math ? 'Equation Lab' : earth ? 'Earth Lab' : 'Solar Claude'}</h2>
         <p class="help-sub">${sub}</p>
-        <div class="help-grid">${math ? mathGrid : solarGrid}</div>
+        <div class="help-grid">${math ? mathGrid : earth ? earthGrid : solarGrid}</div>
         <p class="help-tip">${tip}</p>
       </div>`;
     this.el.help.querySelector('.panel-close').addEventListener('click', () => this.toggleHelp());
@@ -516,10 +533,23 @@ export class UI {
         // equation-lab keys only; solar shortcuts stay out of the way
         switch (e.key) {
           case ' ': e.preventDefault(); if (this.h.mathPlayPause) this.h.mathPlayPause(); break;
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
           case 'h': case 'H': case '?': this.toggleHelp(); break;
           case 'Escape':
             if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
             else if (this.h.mathEscape) this.h.mathEscape();
+            break;
+        }
+        return;
+      }
+      if (this.h.isEarth && this.h.isEarth()) {
+        switch (e.key) {
+          case ' ': e.preventDefault(); if (this.h.earthPlayPause) this.h.earthPlayPause(); break;
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.earthEscape) this.h.earthEscape();
             break;
         }
         return;
@@ -537,6 +567,7 @@ export class UI {
         case 'l': case 'L': this.clickCheckbox('#s-labels'); break;
         case 'g': case 'G': this.clickCheckbox('#s-grid'); break;
         case 'e': case 'E': if (this.h.toggleLab) this.h.toggleLab(); break;
+        case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
         case 'h': case 'H': case '?': this.toggleHelp(); break;
         default: {
           const idx = parseInt(e.key, 10);
@@ -557,8 +588,11 @@ export class UI {
   tick(dt) {
     const clock = this.h.clock;
     const math = this.h.isMath && this.h.isMath();
-    if (math) {
-      this.el.dateText.textContent = this.h.mathStatus ? this.h.mathStatus() : '';
+    const earth = this.h.isEarth && this.h.isEarth();
+    if (math || earth) {
+      this.el.dateText.textContent = math
+        ? (this.h.mathStatus ? this.h.mathStatus() : '')
+        : (this.h.earthStatus ? this.h.earthStatus() : '');
       this.el.liveBadge.classList.remove('on');
       const expBadge = document.getElementById('exp-badge');
       if (expBadge) expBadge.classList.remove('on');

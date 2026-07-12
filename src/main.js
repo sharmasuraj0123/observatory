@@ -14,6 +14,8 @@ import { UI } from './ui/ui.js';
 import { LabPanel } from './ui/lab.js';
 import { MathLab } from './math/mathlab.js';
 import { EquationPanel } from './ui/equationPanel.js';
+import { EarthLab } from './earth/earthlab.js';
+import { EarthPanel } from './ui/earthPanel.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
 import { PLANETS, DWARFS, SUN, COMET_HALLEY } from './data/bodies.js';
 
@@ -379,35 +381,42 @@ async function init() {
     };
   }
 
-  // ---------------- equation lab tab ----------------
+  // ---------------- equation lab + earth lab tabs ----------------
 
   const mathlab = new MathLab(scene);
-  const tabState = { mode: 'solar', solarCam: null, mathCam: null };
+  const earthlab = new EarthLab(scene, getTexture);
+  const tabState = { mode: 'solar', cams: { solar: null, math: null, earth: null } };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
+  const EARTH_HOMES = {
+    planet: { pos: new THREE.Vector3(-118, 64, -118), target: new THREE.Vector3(0, 0, 0) },
+    mooring: { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(0, -8, 0) },
+  };
 
   function setMode(mode) {
     if (mode === tabState.mode) return;
-    const saved = { pos: camera.position.clone(), target: controls.target.clone() };
-    if (tabState.mode === 'solar') tabState.solarCam = saved;
-    else tabState.mathCam = saved;
+    tabState.cams[tabState.mode] = { pos: camera.position.clone(), target: controls.target.clone() };
+    const prev = tabState.mode;
     tabState.mode = mode;
     const isMath = mode === 'math';
+    const isEarth = mode === 'earth';
+    const isSolar = mode === 'solar';
 
     focusCtl.release();
     focusCtl.anim = null;
-    solarRoot.visible = !isMath;
+    solarRoot.visible = isSolar;
     mathlab.group.visible = isMath;
+    earthlab.group.visible = isEarth;
 
-    // the N-body experiment does not integrate while the math tab is open but
+    // the N-body experiment does not integrate while other tabs are open but
     // solar time keeps flowing; catch it up (or re-seed after a long gap)
-    if (isMath) {
+    if (prev === 'solar') {
       physics.lastSolarD = clock.daysSinceJ2000;
-    } else if (physics.on) {
+    } else if (isSolar && physics.on) {
       const gap = clock.daysSinceJ2000 - (physics.lastSolarD ?? clock.daysSinceJ2000);
       if (Math.abs(gap) > 60) {
         seedPhysics(true);
-        labPanel.log('Long stay in the Equation Lab: experiment re-seeded.');
+        labPanel.log('Long stay away from the solar tab: experiment re-seeded.');
       } else if (Math.abs(gap) > 1e-6) {
         const gapSec = gap * 86400;
         const { events, consumedSec } = nbody.step(gapSec);
@@ -419,33 +428,61 @@ async function init() {
       }
     }
 
-    document.getElementById('body-list').classList.toggle('hidden', isMath);
-    document.getElementById('timebar').classList.toggle('hidden', isMath);
+    document.getElementById('body-list').classList.toggle('hidden', !isSolar);
+    document.getElementById('timebar').classList.toggle('hidden', !isSolar);
+    document.getElementById('math-timebar').classList.toggle('hidden', !isMath);
     document.getElementById('equation-panel').classList.toggle('hidden', !isMath);
-    document.getElementById('btn-lab').classList.toggle('hidden', isMath);
-    document.getElementById('btn-settings').classList.toggle('hidden', isMath);
+    document.getElementById('earth-panel').classList.toggle('hidden', !isEarth);
+    document.getElementById('btn-lab').classList.toggle('hidden', !isSolar);
+    document.getElementById('btn-settings').classList.toggle('hidden', !isSolar);
     document.getElementById('settings-panel').classList.add('hidden');
     document.getElementById('lab-panel').classList.add('hidden');
     renderer.domElement.style.cursor = 'default';
-    if (isMath) ui.closeInfo();
-    document.getElementById('tab-solar').classList.toggle('active', !isMath);
+    if (!isSolar) ui.closeInfo();
+    document.getElementById('tab-solar').classList.toggle('active', isSolar);
     document.getElementById('tab-math').classList.toggle('active', isMath);
+    document.getElementById('tab-earth').classList.toggle('active', isEarth);
 
-    const restore = isMath ? tabState.mathCam : tabState.solarCam;
+    const restore = tabState.cams[mode];
     if (restore) {
       camera.position.copy(restore.pos);
       controls.target.copy(restore.target);
     } else if (isMath) {
       camera.position.copy(MATH_HOME.pos);
       controls.target.copy(MATH_HOME.target);
+    } else if (isEarth) {
+      const home = EARTH_HOMES[earthlab.submode];
+      camera.position.copy(home.pos);
+      controls.target.copy(home.target);
     }
-    focusCtl.baseMinDistance = isMath ? 0.6 : 0.2;
+    focusCtl.baseMinDistance = isSolar ? 0.2 : isMath ? 0.6 : 1.5;
     controls.minDistance = focusCtl.baseMinDistance;
-    controls.maxDistance = isMath ? 3000 : 250000;
+    controls.maxDistance = isSolar ? 250000 : 3000;
   }
 
   document.getElementById('tab-solar').addEventListener('click', () => setMode('solar'));
   document.getElementById('tab-math').addEventListener('click', () => setMode('math'));
+  document.getElementById('tab-earth').addEventListener('click', () => setMode('earth'));
+
+  // PNG snapshot of the rendered scene (HUD is DOM and stays out of the frame).
+  // Re-render synchronously first: the drawing buffer is not preserved.
+  function snapshot() {
+    composer.render();
+    renderer.domElement.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const tag = tabState.mode === 'math'
+        ? `${(eqPanel.cfg && eqPanel.cfg.id) || 'equation'}-tau${mathlab.tau.toFixed(1)}`
+        : tabState.mode === 'earth'
+          ? `earth-${earthlab.submode}-t${Math.round(earthlab.sim.t)}`
+          : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      a.download = `solar-claude-${tag}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'image/png');
+  }
+  document.getElementById('btn-snap').addEventListener('click', snapshot);
 
   const eqPanel = new EquationPanel(mathlab, {
     frameView: (cam) => {
@@ -455,6 +492,18 @@ async function init() {
       focusCtl.overview(pos, target);
     },
     followParticle: () => focusCtl.focus(mathlab.focusRec),
+    snapshot: () => snapshot(),
+  });
+  mathlab.onFollowRequest = () => focusCtl.focus(mathlab.focusRec);
+
+  const earthPanel = new EarthPanel(earthlab, {
+    setSubmode: (m) => {
+      earthlab.setSubmode(m);
+      if (tabState.mode === 'earth') {
+        const home = EARTH_HOMES[m];
+        focusCtl.overview(home.pos, home.target);
+      }
+    },
   });
 
   // a diverged particle 0 respawns across the scene; re-anchor the follow
@@ -509,10 +558,22 @@ async function init() {
     isMath: () => tabState.mode === 'math',
     mathStatus: () => mathlab.status(),
     mathPlayPause: () => eqPanel.togglePlay(),
+    snapshot: () => snapshot(),
     mathEscape: () => {
       if (focusCtl.target) focusCtl.release();
       else eqPanel.h.frameView(eqPanel.cfg && eqPanel.cfg.camera);
     },
+    isEarth: () => tabState.mode === 'earth',
+    earthStatus: () => earthlab.status(),
+    earthPlayPause: () => earthPanel.togglePause(),
+    earthEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else {
+        const home = EARTH_HOMES[earthlab.submode];
+        focusCtl.overview(home.pos, home.target);
+      }
+    },
+    openEarthLab: () => setMode('earth'),
   });
 
   const labPanel = new LabPanel({
@@ -543,14 +604,23 @@ async function init() {
   const ndc = new THREE.Vector2();
   let downAt = null;
 
+  const layerRaycaster = new THREE.Raycaster(); // default layer 0: earth cutaway meshes
+
   renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
   renderer.domElement.addEventListener('pointerup', (e) => {
-    if (tabState.mode !== 'solar') return;
     if (!downAt) return;
     const dx = e.clientX - downAt[0], dy = e.clientY - downAt[1];
     downAt = null;
     if (dx * dx + dy * dy > 36) return;
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+
+    if (tabState.mode === 'earth' && earthlab.submode === 'planet') {
+      layerRaycaster.setFromCamera(ndc, camera);
+      const hits = layerRaycaster.intersectObjects(earthlab.layerPickables, false);
+      if (hits.length) earthPanel.selectLayer(hits[0].object.userData.layerId);
+      return;
+    }
+    if (tabState.mode !== 'solar') return;
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObjects(pickables, false);
     if (hits.length) select(hits[0].object.userData.rec.def.id, { focus: true });
@@ -580,6 +650,18 @@ async function init() {
     if (tabState.mode === 'math') {
       mathlab.update(dt);
       eqPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      return;
+    }
+
+    // Earth Lab tab: cutaway planet or real-time SPM mooring simulation
+    if (tabState.mode === 'earth') {
+      earthlab.update(dt);
+      earthPanel.tick(dt);
       focusCtl.update(dt);
       controls.update();
       ui.tick(dt);
@@ -673,7 +755,7 @@ async function init() {
   setTimeout(() => loading.remove(), 900);
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel };
 }
 
 init();

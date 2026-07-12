@@ -5,6 +5,7 @@
 // same handedness-preserving convention the solar ephemeris uses.
 
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { TrailSystem } from '../scene/trails.js';
 import { compileExpr } from './expr.js';
 
@@ -12,6 +13,10 @@ const MAX_PARTICLES = 200;
 const DIVERGE_LIMIT = 2e4;
 const MAX_SUBSTEPS = 48;
 const SUBSTEP_H = 0.02; // integration quality: RK4 step in equation-time units
+const LABEL_MAX = 8; // reference labels on the first few particles
+const HISTORY_CAP = 600; // timeline snapshots kept for scrubbing
+const HISTORY_INTERVAL = 0.15; // tau between recorded snapshots
+const PARAM_SCRUB_SPAN = 120; // scrub window for pure functions of tau
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -65,12 +70,52 @@ export class MathLab {
 
     this.surface = null;
 
+    this.particleSize = 0.55;
+    this.labelsOn = true;
+    this.labelObjs = [];
+    this.followIndex = 0;
+    this.onFollowRequest = null;
+
+    // timeline history for scrubbing back through tau
+    this.history = [];
+
     // camera-follow target compatible with FocusController
     this.focusRec = {
       def: { id: 'particle0', name: 'Particle 1', color: 0x86b7ff },
       worldPos: new THREE.Vector3(),
       visualRadius: 1.4,
     };
+  }
+
+  setParticleSize(s) {
+    this.particleSize = s;
+  }
+
+  setLabelsOn(v) {
+    this.labelsOn = v;
+  }
+
+  setFollowIndex(i) {
+    this.followIndex = Math.min(Math.max(0, i), Math.max(0, (this.n || 1) - 1));
+    this.focusRec.def.name = `Particle ${this.followIndex + 1}`;
+  }
+
+  ensureLabels(count) {
+    while (this.labelObjs.length < count) {
+      const i = this.labelObjs.length;
+      const el = document.createElement('div');
+      el.className = 'body-label small';
+      el.innerHTML = `<span class="label-dot"></span><span class="label-name">P${i + 1}</span>`;
+      el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        this.setFollowIndex(i);
+        if (this.onFollowRequest) this.onFollowRequest();
+      });
+      const obj = new CSS2DObject(el);
+      obj.visible = false;
+      this.group.add(obj);
+      this.labelObjs.push({ obj, dot: el.querySelector('.label-dot') });
+    }
   }
 
   buildAxes() {
@@ -144,8 +189,10 @@ export class MathLab {
     const cfg = this.cfg;
     this.trails.clear();
     this.respawns = 0;
+    this.history.length = 0;
     if (!cfg || cfg.type === 'surface') {
       this.particlesMesh.count = 0;
+      for (const L of this.labelObjs) L.obj.visible = false;
       return;
     }
     const n = Math.min(MAX_PARTICLES, Math.max(1, cfg.particles || 30));
@@ -162,6 +209,20 @@ export class MathLab {
       this.particlesMesh.setColorAt(i, this.tmpColor.copy(c).multiplyScalar(1.7));
     }
     if (this.particlesMesh.instanceColor) this.particlesMesh.instanceColor.needsUpdate = true;
+
+    this.ensureLabels(Math.min(n, LABEL_MAX));
+    for (let i = 0; i < this.labelObjs.length; i++) {
+      const L = this.labelObjs[i];
+      const active = i < Math.min(n, LABEL_MAX);
+      L.obj.visible = false; // shown by projectParticles once positioned
+      L.active = active;
+      if (active) {
+        const hex = '#' + this.colors[i].getHexString();
+        L.dot.style.background = hex;
+        L.dot.style.boxShadow = `0 0 6px ${hex}`;
+      }
+    }
+    if (this.followIndex >= n) this.setFollowIndex(0);
   }
 
   seedParticle(i, rng = Math.random) {
@@ -234,6 +295,7 @@ export class MathLab {
       }
     }
     this.projectParticles();
+    if (dtEq !== 0) this.recordHistory();
     if (this.p0Respawned) {
       this.p0Respawned = false;
       if (this.onP0Respawn) this.onP0Respawn();
@@ -252,7 +314,7 @@ export class MathLab {
         this.seedParticle(i);
         this.trails.clearOne('p' + i);
         this.respawns++;
-        if (i === 0) this.p0Respawned = true; // camera follow must re-anchor
+        if (i === this.followIndex) this.p0Respawned = true; // camera follow must re-anchor
       }
     }
   }
@@ -314,7 +376,7 @@ export class MathLab {
     const cfg = this.cfg;
     const scale = cfg.scale || 1;
     const chain = cfg.chainOffset || 0.1;
-    const size = 0.55;
+    const size = this.particleSize;
     for (let i = 0; i < this.n; i++) {
       let mx, my, mz;
       if (cfg.type === 'parametric') {
@@ -335,10 +397,66 @@ export class MathLab {
       this.dummy.updateMatrix();
       this.particlesMesh.setMatrixAt(i, this.dummy.matrix);
       this.trails.push('p' + i, this.dummy.position, this.colors[i]);
-      if (i === 0) this.focusRec.worldPos.copy(this.dummy.position);
+      if (i === this.followIndex) this.focusRec.worldPos.copy(this.dummy.position);
+      if (i < this.labelObjs.length) {
+        const L = this.labelObjs[i];
+        L.obj.visible = !!L.active && this.labelsOn;
+        L.obj.position.copy(this.dummy.position);
+      }
     }
     this.particlesMesh.instanceMatrix.needsUpdate = true;
     this.trails.update();
+  }
+
+  // ---------------- timeline scrubbing ----------------
+
+  recordHistory() {
+    if (!this.cfg) return;
+    const integrated = this.cfg.type === 'ode' || this.cfg.type === 'force';
+    if (!integrated) return; // pure functions of tau need no stored state
+    const last = this.history[this.history.length - 1];
+    if (last && Math.abs(this.tau - last.tau) < HISTORY_INTERVAL) return;
+    this.history.push({ tau: this.tau, states: this.states.slice(0, this.n * 6) });
+    if (this.history.length > HISTORY_CAP) this.history.shift();
+  }
+
+  scrubRange() {
+    if (!this.cfg) return [0, 0];
+    const integrated = this.cfg.type === 'ode' || this.cfg.type === 'force';
+    if (integrated) {
+      if (!this.history.length) return [this.tau, this.tau];
+      return [this.history[0].tau, Math.max(this.history[this.history.length - 1].tau, this.tau)];
+    }
+    return [this.tau - PARAM_SCRUB_SPAN, this.tau];
+  }
+
+  // Jump to a recorded moment. Integrated systems restore the nearest stored
+  // state and drop the now-invalid future; playing again re-integrates from
+  // there. Parametric and surface types evaluate tau directly.
+  scrubTo(tauTarget) {
+    if (!this.cfg) return;
+    this.playing = false;
+    const integrated = this.cfg.type === 'ode' || this.cfg.type === 'force';
+    if (!integrated) {
+      this.tau = tauTarget;
+      if (this.cfg.type === 'surface') this.updateSurface();
+      else { this.trails.clear(); this.projectParticles(); }
+      return;
+    }
+    if (!this.history.length) return;
+    let best = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < this.history.length; i++) {
+      const d = Math.abs(this.history[i].tau - tauTarget);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    const entry = this.history[best];
+    this.states.set(entry.states, 0);
+    this.tau = entry.tau;
+    this.history.length = best + 1; // scrubbing back invalidates the future
+    this.trails.clear();
+    this.projectParticles();
+    if (this.p0Respawned) this.p0Respawned = false;
   }
 
   updateSurface() {

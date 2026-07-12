@@ -82,6 +82,23 @@ npm run dev     # http://localhost:5174
   particle in a magnetic field, anisotropic oscillator, and three animated
   surfaces (interference ripples, standing waves, an orbiting wave packet).
 
+**Earth Lab (third tab)**
+- A true-scale cutaway of Earth: inner core, outer core, lower and upper mantle
+  and crust at PREM seismic-model radii, each clickable with detailed data
+  (temperature, density, pressure, composition, gravity profile), plus cards
+  for the oceans, land, atmosphere layers, the geodynamo magnetic field (drawn
+  as tilted dipole field lines) and gravity inside the planet.
+- A real-time Single Point Mooring (SPM) simulation: a floating buoy held by
+  six catenary chains 60 degrees apart, each running from a stopper on the
+  buoy rim to a seabed pile. Every chain is solved each frame with quasi-static
+  catenary mechanics (grounded, fully suspended and taut regimes), reporting
+  touchdown point, stopper angle and stopper tension per chain. Wind, current
+  and mean wave-drift forces push the dynamic buoy across an animated sea;
+  upwind chains tighten and lift off the seabed exactly as they should.
+  All parameters are live: buoy size, depth, span, chain length and weight,
+  MBL, wind, current, waves. Chains color by utilization and the buoy traces
+  its trajectory. Physics uses submerged chain weight (0.87 x air weight).
+
 **Interaction**
 - Click any body or label to fly to it; the camera then rides along with its orbit.
 - Time control from real time up to a year per second, forwards or backwards,

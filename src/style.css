@@ -492,6 +492,34 @@ html, body {
 
 .eq-actions { padding: 10px 16px 2px; margin-top: 0; }
 #eq-state { margin: 10px 16px 0; }
+.eq-labels-toggle { padding: 8px 0 0; font-size: 11.5px; color: var(--text-dim); }
+
+/* math timeline bar mirrors the solar timebar */
+#math-timebar {
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  width: min(620px, calc(100vw - 380px));
+}
+#math-timebar.hidden { display: none; }
+#mt-label {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.mt-hint {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+#math-timebar .t-mid { width: 100%; }
 .eq-desc { border-top: 1px solid var(--panel-border); margin-top: 10px; padding-top: 10px; }
 .eq-help { opacity: 0.6; }
 
@@ -799,3 +827,71 @@ input[type='range']::-moz-range-thumb {
   .t-presets { display: none; }
   #t-date { display: none; }
 }
+
+/* ---------- earth lab ---------- */
+
+#earth-panel {
+  top: 64px;
+  right: 16px;
+  width: 340px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-bottom: 16px;
+  z-index: 30;
+}
+
+.earth-modes { padding-top: 4px; }
+.earth-modes button.active {
+  background: rgba(255, 180, 84, 0.16);
+  border-color: rgba(255, 190, 110, 0.45);
+  color: var(--accent);
+}
+.earth-layers { grid-template-columns: 1fr 1fr; }
+.earth-layers .btn.active {
+  background: rgba(255, 180, 84, 0.16);
+  border-color: rgba(255, 190, 110, 0.45);
+  color: var(--accent);
+}
+
+.earth-info { padding: 12px 18px 0; }
+.earth-layer-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+.earth-info .stat-grid { font-size: 12px; margin-top: 10px; }
+.earth-info .stat-v { text-align: right; }
+
+.spm-params { padding: 4px 18px 0; }
+.spm-param { margin-bottom: 8px; }
+.spm-param .setting-row { margin-bottom: 3px; font-size: 12px; }
+.spm-param .spm-val { color: var(--accent-cool); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.spm-table {
+  width: calc(100% - 32px);
+  margin: 8px 16px 10px;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.spm-table th {
+  text-align: right;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.spm-table th:first-child, .spm-table td:first-child { text-align: left; }
+.spm-table td {
+  text-align: right;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(140, 170, 255, 0.06);
+  color: #b8c2d8;
+}
+.spm-table tr.spm-warm td { color: var(--accent); }
+.spm-table tr.spm-hot td { color: #ff8a6a; font-weight: 600; }
+.earth-lab-btn { border-color: rgba(111, 168, 255, 0.4); color: var(--accent-cool); }
+#spm-summary { margin: 10px 16px 0; }

@@ -61,6 +61,9 @@ export class EquationPanel {
         <input type="range" id="eq-n" min="1" max="200" step="1" />
         <div class="setting-row"><span>Start spread</span><span id="eq-spread-val"></span></div>
         <input type="range" id="eq-spread" min="0" max="10" step="0.1" />
+        <div class="setting-row"><span>Particle size</span><span id="eq-size-val"></span></div>
+        <input type="range" id="eq-size" min="0.1" max="2.5" step="0.05" />
+        <label class="setting eq-labels-toggle"><input type="checkbox" id="eq-labels" checked /> Particle labels (P1, P2, ...) - click one to follow it</label>
       </div>
 
       <div class="kick-row eq-actions">
@@ -116,6 +119,18 @@ export class EquationPanel {
       this.spreadVal.textContent = this.cfg.spread.toFixed(1);
       this.lab.resetParticles();
     });
+    this.sizeSlider = this.el.querySelector('#eq-size');
+    this.sizeVal = this.el.querySelector('#eq-size-val');
+    this.sizeSlider.value = this.lab.particleSize;
+    this.sizeVal.textContent = this.lab.particleSize.toFixed(2);
+    this.sizeSlider.addEventListener('input', () => {
+      const s = parseFloat(this.sizeSlider.value);
+      this.lab.setParticleSize(s);
+      this.sizeVal.textContent = s.toFixed(2);
+    });
+    this.el.querySelector('#eq-labels').addEventListener('change', (e) => {
+      this.lab.setLabelsOn(e.target.checked);
+    });
 
     this.playBtn = this.el.querySelector('#eq-play');
     this.playBtn.addEventListener('click', () => this.togglePlay());
@@ -127,11 +142,52 @@ export class EquationPanel {
     this.el.querySelector('#eq-frame').addEventListener('click', () => {
       this.h.frameView(this.cfg.camera);
     });
+
+    this.buildTimebar();
+  }
+
+  // ---------------- timeline bar (bottom) ----------------
+
+  buildTimebar() {
+    const tb = document.getElementById('math-timebar');
+    tb.innerHTML = `
+      <button id="mt-play" class="tbtn big" title="Play / pause (Space)">⏸</button>
+      <div class="t-mid">
+        <div id="mt-label">τ = 0.00</div>
+        <input id="mt-scrub" type="range" min="0" max="1000" step="1" value="1000" />
+        <div class="mt-hint">drag to travel back and forth through τ</div>
+      </div>
+      <button id="mt-snap" class="tbtn" title="Snapshot (S)">📷</button>`;
+    this.mtPlay = tb.querySelector('#mt-play');
+    this.mtScrub = tb.querySelector('#mt-scrub');
+    this.mtLabel = tb.querySelector('#mt-label');
+    this.scrubbing = false;
+
+    this.mtPlay.addEventListener('click', () => this.togglePlay());
+    tb.querySelector('#mt-snap').addEventListener('click', () => this.h.snapshot());
+
+    this.mtScrub.addEventListener('input', () => {
+      this.scrubbing = true;
+      const [r0, r1] = this.lab.scrubRange();
+      const f = parseFloat(this.mtScrub.value) / 1000;
+      this.lab.scrubTo(r0 + (r1 - r0) * f);
+      this.syncPlayButtons();
+      this.mtLabel.textContent = `τ = ${this.lab.tau.toFixed(2)}`;
+    });
+    this.mtScrub.addEventListener('change', () => { this.scrubbing = false; });
+  }
+
+  syncPlayButtons() {
+    const playing = this.lab.playing;
+    this.playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+    if (this.mtPlay) this.mtPlay.textContent = playing ? '⏸' : '▶';
   }
 
   togglePlay() {
     this.lab.playing = !this.lab.playing;
-    this.playBtn.textContent = this.lab.playing ? '⏸ Pause' : '▶ Play';
+    // resuming from a scrubbed point plays forward from that state
+    if (this.lab.playing) this.scrubbing = false;
+    this.syncPlayButtons();
   }
 
   loadPreset(preset, opts = {}) {
@@ -240,8 +296,9 @@ export class EquationPanel {
       this.spreadSlider.value = cfg.spread || 0;
       this.spreadVal.textContent = (cfg.spread || 0).toFixed(1);
     }
-    if (!this.lab.playing) this.togglePlay();
-    this.playBtn.textContent = '⏸ Pause';
+    this.lab.playing = true;
+    this.scrubbing = false;
+    this.syncPlayButtons();
 
     this.el.querySelector('.eq-desc').textContent = cfg.description || '';
   }
@@ -268,6 +325,11 @@ export class EquationPanel {
   }
 
   tick(dt) {
+    // timeline follows live time unless the user is holding the scrubber
+    if (this.mtLabel && !this.scrubbing) {
+      this.mtLabel.textContent = `τ = ${this.lab.tau.toFixed(2)}`;
+      if (this.lab.playing) this.mtScrub.value = 1000;
+    }
     this.liveAcc += dt;
     if (this.liveAcc < 0.25) return;
     this.liveAcc = 0;
