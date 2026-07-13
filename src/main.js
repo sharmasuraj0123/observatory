@@ -16,6 +16,12 @@ import { MathLab } from './math/mathlab.js';
 import { EquationPanel } from './ui/equationPanel.js';
 import { EarthLab } from './earth/earthlab.js';
 import { EarthPanel } from './ui/earthPanel.js';
+import { LightLab } from './light/lightlab.js';
+import { LightPanel } from './ui/lightPanel.js';
+import { GravityLab } from './gravity/gravitylab.js';
+import { GravityPanel } from './ui/gravityPanel.js';
+import { createRecorder, RECORD_MAX_MS } from './capture/recorder.js';
+import { TraceResultsPanel } from './ui/traceResults.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
 import { PLANETS, DWARFS, SUN, COMET_HALLEY } from './data/bodies.js';
 
@@ -385,13 +391,17 @@ async function init() {
 
   const mathlab = new MathLab(scene);
   const earthlab = new EarthLab(scene, getTexture);
-  const tabState = { mode: 'solar', cams: { solar: null, math: null, earth: null } };
+  const lightlab = new LightLab(scene);
+  const gravitylab = new GravityLab(scene, getTexture);
+  const tabState = { mode: 'solar', cams: { solar: null, math: null, earth: null, light: null, gravity: null } };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
   const EARTH_HOMES = {
     planet: { pos: new THREE.Vector3(-118, 64, -118), target: new THREE.Vector3(0, 0, 0) },
     mooring: { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(0, -8, 0) },
   };
+  const LIGHT_HOME = { pos: new THREE.Vector3(20, 30, 240), target: new THREE.Vector3(30, 5, 0) };
+  const GRAVITY_HOME = { pos: new THREE.Vector3(16, 22, 26), target: new THREE.Vector3(0, -2, 0) };
 
   function setMode(mode) {
     if (mode === tabState.mode) return;
@@ -400,6 +410,8 @@ async function init() {
     tabState.mode = mode;
     const isMath = mode === 'math';
     const isEarth = mode === 'earth';
+    const isLight = mode === 'light';
+    const isGravity = mode === 'gravity';
     const isSolar = mode === 'solar';
 
     focusCtl.release();
@@ -407,6 +419,8 @@ async function init() {
     solarRoot.visible = isSolar;
     mathlab.group.visible = isMath;
     earthlab.group.visible = isEarth;
+    lightlab.group.visible = isLight;
+    gravitylab.group.visible = isGravity;
 
     // the N-body experiment does not integrate while other tabs are open but
     // solar time keeps flowing; catch it up (or re-seed after a long gap)
@@ -433,6 +447,8 @@ async function init() {
     document.getElementById('math-timebar').classList.toggle('hidden', !isMath);
     document.getElementById('equation-panel').classList.toggle('hidden', !isMath);
     document.getElementById('earth-panel').classList.toggle('hidden', !isEarth);
+    document.getElementById('light-panel').classList.toggle('hidden', !isLight);
+    document.getElementById('gravity-panel').classList.toggle('hidden', !isGravity);
     document.getElementById('btn-lab').classList.toggle('hidden', !isSolar);
     document.getElementById('btn-settings').classList.toggle('hidden', !isSolar);
     document.getElementById('settings-panel').classList.add('hidden');
@@ -442,6 +458,8 @@ async function init() {
     document.getElementById('tab-solar').classList.toggle('active', isSolar);
     document.getElementById('tab-math').classList.toggle('active', isMath);
     document.getElementById('tab-earth').classList.toggle('active', isEarth);
+    document.getElementById('tab-light').classList.toggle('active', isLight);
+    document.getElementById('tab-gravity').classList.toggle('active', isGravity);
 
     const restore = tabState.cams[mode];
     if (restore) {
@@ -454,6 +472,14 @@ async function init() {
       const home = EARTH_HOMES[earthlab.submode];
       camera.position.copy(home.pos);
       controls.target.copy(home.target);
+    } else if (isLight) {
+      const cam = lightlab.preset?.camera || LIGHT_HOME;
+      camera.position.fromArray(cam.pos);
+      controls.target.fromArray(cam.target);
+    } else if (isGravity) {
+      const cam = gravitylab.preset?.camera || GRAVITY_HOME;
+      camera.position.fromArray(cam.pos);
+      controls.target.fromArray(cam.target);
     }
     focusCtl.baseMinDistance = isSolar ? 0.2 : isMath ? 0.6 : 1.5;
     controls.minDistance = focusCtl.baseMinDistance;
@@ -463,8 +489,23 @@ async function init() {
   document.getElementById('tab-solar').addEventListener('click', () => setMode('solar'));
   document.getElementById('tab-math').addEventListener('click', () => setMode('math'));
   document.getElementById('tab-earth').addEventListener('click', () => setMode('earth'));
+  document.getElementById('tab-light').addEventListener('click', () => setMode('light'));
+  document.getElementById('tab-gravity').addEventListener('click', () => setMode('gravity'));
 
-  // PNG snapshot of the rendered scene (HUD is DOM and stays out of the frame).
+  // Shared filename stem for PNG / WebM captures (HUD is DOM and stays out of frame).
+  function captureTag() {
+    return tabState.mode === 'math'
+      ? `${(eqPanel.cfg && eqPanel.cfg.id) || 'equation'}-tau${mathlab.tau.toFixed(1)}`
+      : tabState.mode === 'earth'
+        ? `earth-${earthlab.submode}-t${Math.round(earthlab.sim.t)}`
+        : tabState.mode === 'light'
+          ? `light-${(lightlab.preset && lightlab.preset.id) || 'optics'}-r${lightlab.rays.length}`
+          : tabState.mode === 'gravity'
+            ? `gravity-${(gravitylab.preset && gravitylab.preset.id) || 'orbit'}-t${Math.round(gravitylab.sim.t)}`
+            : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  }
+
+  // PNG snapshot of the rendered scene.
   // Re-render synchronously first: the drawing buffer is not preserved.
   function snapshot() {
     composer.render();
@@ -472,17 +513,69 @@ async function init() {
       if (!blob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      const tag = tabState.mode === 'math'
-        ? `${(eqPanel.cfg && eqPanel.cfg.id) || 'equation'}-tau${mathlab.tau.toFixed(1)}`
-        : tabState.mode === 'earth'
-          ? `earth-${earthlab.submode}-t${Math.round(earthlab.sim.t)}`
-          : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      a.download = `observatory-${tag}.png`;
+      a.download = `observatory-${captureTag()}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }, 'image/png');
   }
   document.getElementById('btn-snap').addEventListener('click', snapshot);
+
+  // Trace video: composite WebGL + XO logo + live equation/lab HUD.
+  // Also samples per-point data traces; on stop downloads video + JSON/CSV
+  // and opens expected-vs-actual results.
+  const btnRecord = document.getElementById('btn-record');
+  const recBadge = document.getElementById('rec-badge');
+  const traceResults = new TraceResultsPanel();
+
+  function getTraceSnapshot() {
+    const mode = tabState.mode;
+    if (mode === 'math') return mathlab.traceSnapshot();
+    if (mode === 'gravity') return gravitylab.traceSnapshot();
+    if (mode === 'light') return lightlab.traceSnapshot();
+    if (mode === 'earth') return earthlab.traceSnapshot();
+    // Solar: ephemeris bodies as the live trace
+    const pts = [];
+    for (const [id, rec] of byId) {
+      if (!rec || !rec.worldPos) continue;
+      const p = rec.worldPos;
+      pts.push({
+        id,
+        name: rec.def?.name || id,
+        t: clock.daysSinceJ2000,
+        actual: { x: p.x, y: p.y, z: p.z },
+        expected: null,
+        err: null,
+      });
+      if (pts.length >= 16) break;
+    }
+    return {
+      mode: 'solar',
+      name: 'Solar system',
+      t: clock.daysSinceJ2000,
+      status: clock.date.toISOString().slice(0, 19).replace('T', ' '),
+      points: pts,
+    };
+  }
+
+  const recorder = createRecorder({
+    sourceCanvas: renderer.domElement,
+    getFilename: () => `observatory-${captureTag()}`,
+    getSnapshot: getTraceSnapshot,
+    onStateChange: (rec) => {
+      btnRecord.classList.toggle('recording', rec);
+      btnRecord.textContent = rec ? '⏹' : '⏺';
+      btnRecord.title = rec
+        ? 'Stop recording (V)'
+        : 'Record trace video with XO HUD + data, max 10s (V)';
+      btnRecord.setAttribute('aria-pressed', rec ? 'true' : 'false');
+      recBadge.classList.toggle('on', rec);
+      if (!rec) recBadge.textContent = '● REC';
+    },
+    onReport: (report) => {
+      if (report) traceResults.show(report);
+    },
+  });
+  btnRecord.addEventListener('click', () => recorder.toggle());
 
   const eqPanel = new EquationPanel(mathlab, {
     frameView: (cam) => {
@@ -522,6 +615,24 @@ async function init() {
         const home = EARTH_HOMES[m];
         focusCtl.overview(home.pos, home.target);
       }
+    },
+  });
+
+  const lightPanel = new LightPanel(lightlab, {
+    frameView: (cam) => {
+      if (tabState.mode !== 'light') return;
+      const pos = cam ? new THREE.Vector3(...cam.pos) : LIGHT_HOME.pos;
+      const target = cam ? new THREE.Vector3(...cam.target) : LIGHT_HOME.target;
+      focusCtl.overview(pos, target);
+    },
+  });
+
+  const gravityPanel = new GravityPanel(gravitylab, {
+    frameView: (cam) => {
+      if (tabState.mode !== 'gravity') return;
+      const pos = cam ? new THREE.Vector3(...cam.pos) : GRAVITY_HOME.pos;
+      const target = cam ? new THREE.Vector3(...cam.target) : GRAVITY_HOME.target;
+      focusCtl.overview(pos, target);
     },
   });
 
@@ -579,6 +690,13 @@ async function init() {
     mathPlayPause: () => eqPanel.togglePlay(),
     mathReverse: () => eqPanel.toggleReverse(),
     snapshot: () => snapshot(),
+    toggleRecord: () => recorder.toggle(),
+    isRecording: () => recorder.isRecording(),
+    recordStatus: () => ({
+      on: recorder.isRecording(),
+      elapsedMs: recorder.elapsedMs(),
+      maxMs: RECORD_MAX_MS,
+    }),
     mathEscape: () => {
       if (focusCtl.target) focusCtl.release();
       else eqPanel.h.frameView(eqPanel.cfg && eqPanel.cfg.camera);
@@ -594,6 +712,25 @@ async function init() {
       }
     },
     openEarthLab: () => setMode('earth'),
+    isLight: () => tabState.mode === 'light',
+    lightStatus: () => lightlab.status(),
+    lightEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else {
+        const cam = lightlab.preset?.camera || LIGHT_HOME;
+        focusCtl.overview(new THREE.Vector3(...cam.pos), new THREE.Vector3(...cam.target));
+      }
+    },
+    isGravity: () => tabState.mode === 'gravity',
+    gravityStatus: () => gravitylab.status(),
+    gravityPlayPause: () => gravityPanel.togglePause(),
+    gravityEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else {
+        const cam = gravitylab.preset?.camera || GRAVITY_HOME;
+        focusCtl.overview(new THREE.Vector3(...cam.pos), new THREE.Vector3(...cam.target));
+      }
+    },
   });
 
   const labPanel = new LabPanel({
@@ -640,12 +777,56 @@ async function init() {
       if (hits.length) earthPanel.selectLayer(hits[0].object.userData.layerId);
       return;
     }
+    if (tabState.mode === 'light') {
+      // intersect the optical plane y-up at z≈0
+      layerRaycaster.setFromCamera(ndc, camera);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const hit = new THREE.Vector3();
+      if (layerRaycaster.ray.intersectPlane(plane, hit)) {
+        const ray = lightlab.pickNearest(hit.x, hit.y, 10);
+        if (ray) {
+          lightlab.selectRay(ray.id);
+          lightPanel.renderTable();
+          lightPanel.renderDetail();
+        }
+      }
+      return;
+    }
+    if (tabState.mode === 'gravity') {
+      layerRaycaster.setFromCamera(ndc, camera);
+      const hits = layerRaycaster.intersectObjects(gravitylab.pickables, false);
+      if (hits.length) {
+        const id = hits[0].object.userData.bodyId;
+        gravitylab.selectBody(id);
+        gravityPanel.renderTable();
+        gravityPanel.renderDetail();
+      }
+      return;
+    }
     if (tabState.mode !== 'solar') return;
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObjects(pickables, false);
     if (hits.length) select(hits[0].object.userData.rec.def.id, { focus: true });
   });
   renderer.domElement.addEventListener('pointermove', (e) => {
+    if (tabState.mode === 'light') {
+      ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+      layerRaycaster.setFromCamera(ndc, camera);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const hit = new THREE.Vector3();
+      if (layerRaycaster.ray.intersectPlane(plane, hit)) {
+        const ray = lightlab.pickNearest(hit.x, hit.y, 8);
+        renderer.domElement.style.cursor = ray ? 'pointer' : 'default';
+      }
+      return;
+    }
+    if (tabState.mode === 'gravity') {
+      ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+      layerRaycaster.setFromCamera(ndc, camera);
+      renderer.domElement.style.cursor =
+        layerRaycaster.intersectObjects(gravitylab.pickables, false).length ? 'pointer' : 'default';
+      return;
+    }
     if (tabState.mode !== 'solar') return;
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
@@ -675,6 +856,7 @@ async function init() {
       ui.tick(dt);
       composer.render();
       labelRenderer.render(scene, camera);
+      recorder.tick();
       return;
     }
 
@@ -687,6 +869,33 @@ async function init() {
       ui.tick(dt);
       composer.render();
       labelRenderer.render(scene, camera);
+      recorder.tick();
+      return;
+    }
+
+    // Light Lab tab: geometric optics bench with live ray tracing
+    if (tabState.mode === 'light') {
+      lightlab.update(dt);
+      lightPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      recorder.tick();
+      return;
+    }
+
+    // Gravity Lab tab: orbital mechanics sandbox
+    if (tabState.mode === 'gravity') {
+      gravitylab.update(dt);
+      gravityPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      recorder.tick();
       return;
     }
 
@@ -768,6 +977,7 @@ async function init() {
 
     composer.render();
     labelRenderer.render(scene, camera);
+    recorder.tick();
   });
 
   const loading = document.getElementById('loading');
@@ -775,7 +985,7 @@ async function init() {
   setTimeout(() => loading.remove(), 900);
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, recorder };
 }
 
 init();

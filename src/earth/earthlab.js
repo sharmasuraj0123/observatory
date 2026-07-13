@@ -374,4 +374,46 @@ export class EarthLab {
     const tonnes = Number.isFinite(maxT) ? (maxT / 9806.65).toFixed(1) : 'TAUT';
     return `SPM · t = ${this.sim.t.toFixed(0)} s · max tension ${tonnes} t (chain ${maxI + 1})`;
   }
+
+  traceSnapshot() {
+    if (this.submode === 'planet') {
+      return {
+        mode: 'earth',
+        name: 'Earth interior',
+        t: 0,
+        status: this.status(),
+        points: [],
+      };
+    }
+    const sim = this.sim;
+    const chains = sim.lastChains || [];
+    const points = chains.map((c, i) => {
+      const T = Number.isFinite(c.sol?.T) ? c.sol.T : NaN;
+      const tonnes = T / 9806.65;
+      return {
+        id: `c${i}`,
+        name: `Chain ${i + 1}`,
+        t: sim.t,
+        actual: { r: c.sol?.scope ?? NaN, v: tonnes, e: c.sol?.angleDeg ?? NaN },
+        expected: null,
+        err: null,
+        extra: { state: c.sol?.state },
+      };
+    });
+    points.unshift({
+      id: 'buoy',
+      name: 'Buoy',
+      t: sim.t,
+      actual: { x: sim.buoy.x, y: sim.buoy.heave, z: sim.buoy.z },
+      expected: null,
+      err: null,
+    });
+    return {
+      mode: 'earth',
+      name: 'SPM mooring',
+      t: sim.t,
+      status: this.status(),
+      points,
+    };
+  }
 }

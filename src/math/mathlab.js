@@ -767,6 +767,72 @@ export class MathLab {
     return `τ = ${this.tau.toFixed(2)} · ${this.playing ? rateStr : 'paused'}`;
   }
 
+  // Live equation + per-particle state for recording overlays and data traces.
+  // Parametric: expected = closed-form eval at each particle's τ; actual = same
+  // (identity check). ODE/force: expected velocity/accel from the field vs state.
+  traceSnapshot() {
+    if (!this.cfg || !this.compiled) return null;
+    const cfg = this.cfg;
+    const chain = cfg.chainOffset || 0.1;
+    const exprs = { ...(cfg.exprs || {}) };
+    const params = {};
+    for (const [k, p] of Object.entries(cfg.params || {})) params[k] = p.value;
+    const points = [];
+    const n = cfg.type === 'surface' ? 0 : this.n;
+    for (let i = 0; i < n; i++) {
+      let actual, expected, err = null, tPart = this.tau;
+      if (cfg.type === 'parametric') {
+        tPart = this.tau - i * chain;
+        const v = this.scope;
+        v.t = tPart;
+        const ex = this.compiled.x(v);
+        const ey = this.compiled.y(v);
+        const ez = this.compiled.z(v);
+        expected = { x: ex, y: ey, z: ez };
+        actual = { x: ex, y: ey, z: ez };
+        err = 0;
+      } else {
+        const j = i * 6;
+        const s = this.states;
+        actual = {
+          x: s[j], y: s[j + 1], z: s[j + 2],
+          vx: s[j + 3], vy: s[j + 4], vz: s[j + 5],
+        };
+        if (cfg.type === 'ode') {
+          const out = [0, 0, 0];
+          this.evalOde(actual.x, actual.y, actual.z, this.tau, out);
+          // Field velocity at the simulated point (analytic RHS)
+          expected = { vx: out[0], vy: out[1], vz: out[2] };
+          err = null;
+        } else if (cfg.type === 'force') {
+          const st = [actual.x, actual.y, actual.z, actual.vx, actual.vy, actual.vz];
+          const out = new Float64Array(6);
+          this.evalForce(st, this.tau, out);
+          expected = { ax: out[3], ay: out[4], az: out[5] };
+          err = null;
+        }
+      }
+      points.push({
+        id: `p${i}`,
+        name: `P${i + 1}`,
+        t: tPart,
+        actual,
+        expected,
+        err,
+      });
+    }
+    return {
+      mode: 'math',
+      name: cfg.name || cfg.id || 'equation',
+      type: cfg.type,
+      tau: this.tau,
+      status: this.status(),
+      exprs,
+      params,
+      points,
+    };
+  }
+
   particleInfo() {
     if (!this.cfg || this.cfg.type === 'surface' || !this.n) return null;
     const s = this.states;

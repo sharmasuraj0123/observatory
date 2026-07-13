@@ -74,6 +74,7 @@ export class UI {
     this.el = {
       dateText: document.getElementById('date-text'),
       liveBadge: document.getElementById('live-badge'),
+      recBadge: document.getElementById('rec-badge'),
       bodyList: document.getElementById('body-list'),
       info: document.getElementById('info-panel'),
       settings: document.getElementById('settings-panel'),
@@ -473,16 +474,20 @@ export class UI {
   renderHelp() {
     const math = this.h.isMath && this.h.isMath();
     const earth = this.h.isEarth && this.h.isEarth();
+    const light = this.h.isLight && this.h.isLight();
+    const gravity = this.h.isGravity && this.h.isGravity();
     const solarGrid = `
       <span>Click body / label</span><span>select and fly to it</span>
       <span>Drag / scroll</span><span>orbit and zoom</span>
       <span>Space</span><span>pause time</span>
-      <span>+ / −</span><span>speed up / slow down time</span>
+      <span>+ / -</span><span>speed up / slow down time</span>
       <span>0 - 9</span><span>focus Sun, Mercury through Pluto</span>
       <span>Esc</span><span>release focus, then overview</span>
       <span>O / L / G</span><span>toggle orbits / labels / grid</span>
       <span>E</span><span>physics lab (N-body experiments)</span>
-      <span>Tabs</span><span>Equation Lab: type any equation, watch it move</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>Tabs</span><span>Equation / Earth / Light / Gravity labs</span>
       <span>H</span><span>this help</span>`;
     const mathGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -490,6 +495,7 @@ export class UI {
       <span>R</span><span>reverse time</span>
       <span>Timeline</span><span>drag the scrubber to any recorded moment</span>
       <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
       <span>Data fit</span><span>paste a dataset, plot it, guess its equation</span>
       <span>Superposition</span><span>freeze equations as layers; same-type layers add</span>
       <span>Commit</span><span>version-control the lab state, git-style, with thumbnails</span>
@@ -499,25 +505,58 @@ export class UI {
       <span>Drag / scroll</span><span>orbit and zoom</span>
       <span>Click a layer</span><span>inspect core, mantle, crust, fields</span>
       <span>Space</span><span>pause / resume the mooring simulation</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
       <span>Esc</span><span>reframe the view</span>
       <span>Sliders</span><span>every mooring parameter is live</span>
+      <span>H</span><span>this help</span>`;
+    const lightGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Click a ray</span><span>select it for the event log</span>
+      <span>Table row</span><span>same selection; sort by clicking headers</span>
+      <span>Presets</span><span>Snell, TIR, prism, lens, mirror, rainbow</span>
+      <span>Sliders</span><span>every optical parameter is live</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>Esc</span><span>reframe the bench</span>
+      <span>H</span><span>this help</span>`;
+    const gravityGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Click a particle</span><span>select it for orbital elements</span>
+      <span>Space</span><span>pause / resume integration</span>
+      <span>Classical</span><span>LEO, escape, binary, Roche, Kepler fans</span>
+      <span>Quantum gravity</span><span>bounce, running G, Yukawa, foam, Hawking, Schrödinger-Newton</span>
+      <span>Exponent n</span><span>live force law F ∝ 1/rⁿ (classical)</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>Esc</span><span>reframe the view</span>
       <span>H</span><span>this help</span>`;
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
       : earth
         ? 'Earth Lab: a true-scale cutaway of the planet (PREM layer radii, dipole field lines) and a live Single Point Mooring simulation solved with quasi-static catenary mechanics.'
-        : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
+        : light
+          ? 'Light Lab: geometric optics with Cauchy dispersion and Fresnel intensities. Every ray is traced bounce-by-bounce with θi, θt, R/T, optical path length and time of flight.'
+          : gravity
+            ? 'Gravity Lab: leapfrog N-body with massless tracers, plus pedagogical quantum-gravity toys (LQG bounce, running G, massive graviton, spacetime foam, Hawking evaporation, Schrödinger-Newton).'
+            : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
       : earth
         ? 'Try it: in SPM mooring, raise the wind to 30 m/s and watch the upwind chains lift off the seabed, the touchdown points race toward the piles and the tension table go amber.'
-        : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
+        : light
+          ? 'Try it: open Prism dispersion and raise the wavelength count. Click a violet ray and read its Snell residual, then switch to Total internal reflection and fan past θc.'
+          : gravity
+            ? 'Try it: open Quantum bounce and watch free-fall reverse at ℓ_b, then switch to Hawking evaporation and raise κ until outer orbits unbind.'
+            : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
+    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : 'Observatory';
+    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : solarGrid;
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
-        <h2>${math ? 'Equation Lab' : earth ? 'Earth Lab' : 'Observatory'}</h2>
+        <h2>${title}</h2>
         <p class="help-sub">${sub}</p>
-        <div class="help-grid">${math ? mathGrid : earth ? earthGrid : solarGrid}</div>
+        <div class="help-grid">${grid}</div>
         <p class="help-tip">${tip}</p>
       </div>`;
     this.el.help.querySelector('.panel-close').addEventListener('click', () => this.toggleHelp());
@@ -539,6 +578,7 @@ export class UI {
           case ' ': e.preventDefault(); if (this.h.mathPlayPause) this.h.mathPlayPause(); break;
           case 'r': case 'R': if (this.h.mathReverse) this.h.mathReverse(); break;
           case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
           case 'h': case 'H': case '?': this.toggleHelp(); break;
           case 'Escape':
             if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
@@ -551,10 +591,36 @@ export class UI {
         switch (e.key) {
           case ' ': e.preventDefault(); if (this.h.earthPlayPause) this.h.earthPlayPause(); break;
           case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
           case 'h': case 'H': case '?': this.toggleHelp(); break;
           case 'Escape':
             if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
             else if (this.h.earthEscape) this.h.earthEscape();
+            break;
+        }
+        return;
+      }
+      if (this.h.isLight && this.h.isLight()) {
+        switch (e.key) {
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.lightEscape) this.h.lightEscape();
+            break;
+        }
+        return;
+      }
+      if (this.h.isGravity && this.h.isGravity()) {
+        switch (e.key) {
+          case ' ': e.preventDefault(); if (this.h.gravityPlayPause) this.h.gravityPlayPause(); break;
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.gravityEscape) this.h.gravityEscape();
             break;
         }
         return;
@@ -573,6 +639,7 @@ export class UI {
         case 'g': case 'G': this.clickCheckbox('#s-grid'); break;
         case 'e': case 'E': if (this.h.toggleLab) this.h.toggleLab(); break;
         case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+        case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
         case 'h': case 'H': case '?': this.toggleHelp(); break;
         default: {
           const idx = parseInt(e.key, 10);
@@ -591,13 +658,20 @@ export class UI {
   // ---------------- per-frame ----------------
 
   tick(dt) {
+    this.tickRecBadge();
     const clock = this.h.clock;
     const math = this.h.isMath && this.h.isMath();
     const earth = this.h.isEarth && this.h.isEarth();
-    if (math || earth) {
+    const light = this.h.isLight && this.h.isLight();
+    const gravity = this.h.isGravity && this.h.isGravity();
+    if (math || earth || light || gravity) {
       this.el.dateText.textContent = math
         ? (this.h.mathStatus ? this.h.mathStatus() : '')
-        : (this.h.earthStatus ? this.h.earthStatus() : '');
+        : earth
+          ? (this.h.earthStatus ? this.h.earthStatus() : '')
+          : light
+            ? (this.h.lightStatus ? this.h.lightStatus() : '')
+            : (this.h.gravityStatus ? this.h.gravityStatus() : '');
       this.el.liveBadge.classList.remove('on');
       const expBadge = document.getElementById('exp-badge');
       if (expBadge) expBadge.classList.remove('on');
@@ -615,6 +689,15 @@ export class UI {
       this.liveAcc = 0;
       this.updateLiveStats();
     }
+  }
+
+  tickRecBadge() {
+    if (!this.el.recBadge || !this.h.recordStatus) return;
+    const st = this.h.recordStatus();
+    this.el.recBadge.classList.toggle('on', !!st.on);
+    if (!st.on) return;
+    const sec = Math.min(st.elapsedMs, st.maxMs) / 1000;
+    this.el.recBadge.textContent = `● REC ${sec.toFixed(1)}s`;
   }
 }
 

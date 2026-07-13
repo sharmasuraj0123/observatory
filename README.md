@@ -44,6 +44,8 @@ Three **instruments** share one engine (renderer, camera, trails, HUD):
 | **Solar System** | Celestial mechanics | Where is everything, really, on any date? What if gravity were different? |
 | **Equation Lab** | Dynamical systems, general math | How does an arbitrary equation move through space and time? |
 | **Earth Lab** | Geophysics and offshore engineering | What is Earth made of, and how does a real mooring behave under weather? |
+| **Light Lab** | Geometric optics | Where does each ray go, and what does Snell / Fresnel / dispersion do to it? |
+| **Gravity Lab** | Orbital mechanics + QG toys | What orbit is this particle on, and what if gravity were quantum-corrected? |
 
 ---
 
@@ -59,11 +61,12 @@ npm run preview   # serve the production build
 ```
 
 Open the app, then switch instruments with the tabs in the top-left. Press **H** at any
-time for a context-aware help card, and **S** for a PNG snapshot of the current view.
+time for a context-aware help card, **S** for a PNG snapshot, and **V** to record up to
+10 seconds of the current view as a WebM.
 
 ---
 
-## The three instruments
+## The five instruments
 
 ### 1. Solar System
 
@@ -139,6 +142,56 @@ pipeline (bloom, trails, free camera, live readouts). The trail is the time axis
   current, wave height and period). Chains color by utilization; the buoy traces its
   drift. The solver uses submerged chain weight (0.87x the in-air weight).
 
+### 4. Light Lab
+
+A geometric-optics workbench that traces every ray bounce-by-bounce and reports the full
+event log. The point is not a pretty rainbow; it is the numbers behind each interaction.
+
+- **Ray tracer:** plane and spherical surfaces, mirrors, dielectrics and detectors. At every
+  hit: incidence and transmission angles, Fresnel R/T (unpolarized average of Rs, Rp),
+  total internal reflection when past the critical angle, optical path length and time of
+  flight (mm and ns).
+- **Cauchy dispersion:** n(λ) = A + B/λ² for BK7, fused silica, water, acrylic, sapphire and
+  diamond, so a prism or rainbow actually splits by wavelength with spectral colors.
+- **Ray-by-ray analysis:** a sortable table of every ray (λ, launch angle, hit count, residual
+  intensity, OPL, fate). Click a row or a ray in the 3D view to open the event inspector:
+  each bounce shows θi, θt, n1 to n2, Fresnel coefficients, intensity in/out, OPL, ToF and the
+  Snell residual `|n1 sin θi - n2 sin θt|`.
+- **Presets:** air to glass Snell demo (with live verification of the residual), total internal
+  reflection past θc, equilateral prism dispersion, biconvex BK7 lens (lensmaker focal mark,
+  spherical aberration visible on outer rays), concave spherical mirror (f = R/2), parallel
+  plate shift, diamond brilliance, Descartes water-drop rainbow (~42° primary bow), silica vs
+  BK7 comparison, and a dense white-beam stress test.
+- **Live controls:** fan angle, ray count, wavelength bands, lens radius and thickness, prism
+  apex, impact parameter, material. Everything rebuilds the fan immediately.
+
+### 5. Gravity Lab
+
+An orbital-mechanics sandbox with particle-by-particle analysis, plus pedagogical
+quantum-gravity toys. Leapfrog N-body for massive bodies and massless tracers; a live
+force-law exponent so you can break 1/r² on purpose; and six effective QG models.
+
+- **Integrator:** symplectic kick-drift-kick leapfrog in km, kg, s, with adaptive substeps.
+  Massive bodies feel each other; tracers feel the massive field only.
+- **Particle-by-particle analysis:** for every tracer, live r, v, specific energy ε, specific
+  angular momentum h, eccentricity e, semi-major a, periapsis / apoapsis, period, flight-path
+  angle, escape and circular speeds, and orbit kind (circular / elliptical / parabolic /
+  hyperbolic). Click a row or a mesh to open the inspector.
+- **Force-law exponent:** F ∝ 1/rⁿ with n live. The Inverse-square check preset reports the
+  log-log slope of acceleration vs radius; Broken force law shows Bertrand precession when
+  n ≠ 2.
+- **Classical presets:** LEO circular (period verify), elliptical family, escape fan,
+  inverse-square check, Earth-Moon, binary stars, gravity assist flyby, Roche limit rubble
+  pile, Kepler fans (T² ∝ a³ verify), and broken force law.
+- **Quantum gravity (pedagogical):** not a full theory; effective models you can poke:
+  - **Quantum bounce** (LQG-inspired): a = −GM/r² + GM ℓ_b²/r⁴; free-fall rebounds
+  - **Running G** (asymptotic safety): G(r) = G₀/(1+(ℓ/r)^α); UV softening
+  - **Massive graviton** (Yukawa): Φ ∝ e^{−r/λ}/r; screened far-field
+  - **Spacetime foam:** stochastic geodesic kicks that grow at small r
+  - **Hawking evaporation:** toy dM/dt = −κ/M²; orbits unbind as the hole shrinks
+  - **Schrödinger-Newton:** self-gravitating packet + Bohm-like quantum pressure
+- **Potential well:** a live mesh of Φ colored by depth; trails on tracers; Roche / scale rings.
+
 ---
 
 ## Traces and information
@@ -164,11 +217,15 @@ shared set of capture mechanisms so an experiment leaves evidence behind.
   over model families (lines, polynomials, sinusoids, damped sinusoids, exponentials) and
   reports a candidate equation per axis with its R-squared. One click overlays the fit on
   the data for comparison. Curiosity in, a hypothesis out.
-- **Live numeric readouts.** Position, velocity, force, acceleration, orbital speed, chain
-  tension, catenary angle, and more, updated every frame in real units. The visualization
-  is never a substitute for the number.
+  - **Live numeric readouts.** Position, velocity, force, acceleration, orbital speed, chain
+  tension, catenary angle, ray θi/θt/Fresnel/OPL, and more, updated every frame in real units.
+  The visualization is never a substitute for the number.
 - **PNG snapshots.** Press S in any tab to download a clean render (the HUD is DOM and
   stays out of the frame), named for what it captured.
+- **Trace video.** Press V (or the record button) to capture up to 10 seconds of the live
+  view with the XO logo and live equation / lab readouts burned into the frame. While
+  recording, every particle / ray / body is sampled into a data trace. On stop the app
+  downloads the video plus JSON/CSV traces and opens an expected-vs-actual results table.
 
 ---
 
@@ -188,6 +245,8 @@ Observatory is meant to be trustworthy enough to reason with, so the methods are
 | Mooring chains | Quasi-static catenary (grounded / suspended / taut), submerged weight | Standard catenary mooring analysis |
 | Waves | Linear (Airy) dispersion, three directional components; mean wave-drift force | Linear wave theory |
 | Earth interior | Layer radii and densities | PREM (Preliminary Reference Earth Model), IUGG values |
+| Ray optics | Snell's law, Fresnel R/T (unpolarized), TIR, Cauchy n(λ) = A + B/λ² | Hecht, Optics; Schott / standard glass catalogs |
+| Gravity sandbox | Symplectic leapfrog; orbital elements from h and e vectors; F ∝ 1/rⁿ | Vallado / Battin; Bertrand's theorem |
 
 Numbers are checked against known values where possible. For example, the default mooring
 case (30 m depth, 300 m span, 315 m chain at 250 kg/m) reproduces the analytic catenary
@@ -220,6 +279,10 @@ single render loop; each tab hides the others and runs its own update.
 ```
 src/
   main.js            Orchestrator: tabs, render loop, picking, snapshots, physics-lab glue
+  capture/
+    recorder.js        Composite MediaRecorder, 10s cap, WebM/MP4 + data exports
+    overlay.js         XO logo + live equation/lab HUD painter
+    datatrace.js       Per-point expected vs actual sampling
   sim/               Time and celestial mechanics
     constants.js       Units, scene scale, unit conversions
     clock.js           Simulation clock (rate, pause, date jump)
@@ -244,6 +307,15 @@ src/
     earthdata.js       PREM layers, oceans, atmosphere, field, gravity data
     earthlab.js        Cutaway planet + SPM scene
     mooring.js         Catenary solver + buoy dynamics + wave field
+  light/               Light Lab
+    optics.js          Snell, Fresnel, Cauchy dispersion, multi-bounce ray tracer
+    presets.js         Optical-bench presets (prism, lens, TIR, rainbow, ...)
+    lightlab.js        Bench scene, colored rays, detector, picking
+  gravity/             Gravity Lab
+    grav.js            Leapfrog N-body, orbital elements, tunable F ∝ 1/r^n
+    quantum.js         Pedagogical QG effective models (bounce, running G, ...)
+    presets.js         Classical + quantum-gravity presets
+    gravitylab.js      Potential well, tracers, trails, picking
   camera/
     focus.js           Fly-to and follow-along camera controller
   textures/
@@ -253,6 +325,8 @@ src/
     lab.js             Physics-lab (N-body experiment) panel
     equationPanel.js   Equation editor, presets, timeline, commits, data fit
     earthPanel.js      Interior explorer + mooring workbench
+    lightPanel.js      Optics presets, live params, ray-by-ray table + event log
+    gravityPanel.js    Classical + QG presets, live params, particle table
 ```
 
 **Scene conventions (important when adding anything):**
@@ -261,7 +335,9 @@ src/
   (x_ecl, z_ecl, -y_ecl) to preserve handedness.
 - Equation Lab: math coordinates are z-up and map to the scene as (x, y, z) -> (X, -Z, Y).
 - Earth Lab planet: 1 scene unit = 100 km. Earth Lab mooring: 1 scene unit = 1 m.
-- Keep all physics in real units (km, kg, s, N, m) and convert to scene units only at the
+- Light Lab: 1 scene unit = 1 mm on the optical bench (XY working plane).
+- Gravity Lab: physics in km; each preset sets `sceneScale` (km to scene units).
+- Keep all physics in real units (km, kg, s, N, m, mm, nm) and convert to scene units only at the
   render boundary.
 
 ---
@@ -297,6 +373,11 @@ browser to confirm it behaves.**
 - **Add a mooring scenario or Earth data:** parameters live in `src/earth/mooring.js`
   (`MooringSim.params`) and the interior/field/atmosphere dataset in
   `src/earth/earthdata.js`.
+- **Add an optics preset:** add to `src/light/presets.js` with a `build(params)` that
+  returns surfaces, elements, angles/wavelengths (and optional `bundle` y-offsets or
+  `forceReflectOn` bounce list). The panel, tracer and detector pick it up.
+- **Add a gravity preset:** add to `src/gravity/presets.js` with bodies in km/kg/s and a
+  `sceneScale`. Optional `verify(sim)` chip runs against analytic Kepler / force-law checks.
 
 ### Accuracy bar
 

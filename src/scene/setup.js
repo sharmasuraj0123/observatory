@@ -19,6 +19,8 @@ export function createStage(container) {
     antialias: false,
     logarithmicDepthBuffer: true,
     powerPreference: 'high-performance',
+    // Needed so snapshot / video compositing can read the canvas after render.
+    preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);

@@ -27,15 +27,19 @@
         <button id="tab-solar" class="active">Solar system</button>
         <button id="tab-math">Equation lab</button>
         <button id="tab-earth">Earth lab</button>
+        <button id="tab-light">Light lab</button>
+        <button id="tab-gravity">Gravity lab</button>
       </div>
     </div>
     <div id="sim-date">
       <span id="date-text"></span>
       <span id="live-badge" class="live-badge">● LIVE</span>
       <span id="exp-badge" class="live-badge exp">⚗ EXPERIMENT</span>
+      <span id="rec-badge" class="live-badge rec">● REC</span>
     </div>
     <div class="top-actions">
       <button id="btn-snap" class="tbtn" title="Snapshot (S)">📷</button>
+      <button id="btn-record" class="tbtn" title="Record trace video with XO HUD + data, max 10s (V)" aria-pressed="false">⏺</button>
       <button id="btn-help" class="tbtn" title="Help (H)">?</button>
       <button id="btn-lab" class="tbtn" title="Physics lab (E)">⚗</button>
       <button id="btn-settings" class="tbtn" title="Display settings">⚙</button>
@@ -48,9 +52,12 @@
   <div id="lab-panel" class="panel hidden"></div>
   <aside id="equation-panel" class="panel hidden"></aside>
   <aside id="earth-panel" class="panel hidden"></aside>
+  <aside id="light-panel" class="panel hidden"></aside>
+  <aside id="gravity-panel" class="panel hidden"></aside>
   <footer id="timebar" class="panel"></footer>
   <footer id="math-timebar" class="panel hidden"></footer>
   <div id="help-overlay" class="overlay hidden"></div>
+  <div id="trace-results" class="overlay hidden"></div>
 
   <div id="attribution">
     Ephemerides: JPL Keplerian elements · Textures: Solar System Scope (CC BY 4.0) · Press H for help
