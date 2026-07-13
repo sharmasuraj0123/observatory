@@ -515,7 +515,7 @@ export class UI {
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
-        <h2>${math ? 'Equation Lab' : earth ? 'Earth Lab' : 'Solar Claude'}</h2>
+        <h2>${math ? 'Equation Lab' : earth ? 'Earth Lab' : 'Observatory'}</h2>
         <p class="help-sub">${sub}</p>
         <div class="help-grid">${math ? mathGrid : earth ? earthGrid : solarGrid}</div>
         <p class="help-tip">${tip}</p>

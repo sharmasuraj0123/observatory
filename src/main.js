@@ -477,7 +477,7 @@ async function init() {
         : tabState.mode === 'earth'
           ? `earth-${earthlab.submode}-t${Math.round(earthlab.sim.t)}`
           : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      a.download = `solar-claude-${tag}.png`;
+      a.download = `observatory-${tag}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }, 'image/png');
