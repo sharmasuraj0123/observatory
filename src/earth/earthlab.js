@@ -372,7 +372,13 @@ export class EarthLab {
       if (T > maxT) { maxT = T; maxI = i; }
     });
     const tonnes = Number.isFinite(maxT) ? (maxT / 9806.65).toFixed(1) : 'TAUT';
-    return `SPM · t = ${this.sim.t.toFixed(0)} s · max tension ${tonnes} t (chain ${maxI + 1})`;
+    const ang = Number.isFinite(chains[maxI]?.sol?.angleDeg)
+      ? chains[maxI].sol.angleDeg.toFixed(1)
+      : '?';
+    const td = Number.isFinite(chains[maxI]?.sol?.touchdownFromPile)
+      ? chains[maxI].sol.touchdownFromPile.toFixed(0)
+      : '?';
+    return `SPM · t=${this.sim.t.toFixed(0)}s · T=${tonnes}t · ∠${ang}° · TD=${td}m (ch ${maxI + 1})`;
   }
 
   traceSnapshot() {
