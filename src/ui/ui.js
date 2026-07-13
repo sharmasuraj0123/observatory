@@ -70,12 +70,14 @@ export class UI {
     this.h = hooks; // { clock, byId, sections, select, focus, release, overview, toggles, setPlanetScale, defaultScaleSlider }
     this.selected = null;
     this.liveAcc = 0;
+    this.mobileMq = window.matchMedia('(max-width: 900px)');
 
     this.el = {
       dateText: document.getElementById('date-text'),
       liveBadge: document.getElementById('live-badge'),
       recBadge: document.getElementById('rec-badge'),
       bodyList: document.getElementById('body-list'),
+      mobileBodies: document.getElementById('mobile-bodies'),
       info: document.getElementById('info-panel'),
       settings: document.getElementById('settings-panel'),
       timebar: document.getElementById('timebar'),
@@ -83,21 +85,46 @@ export class UI {
     };
 
     this.buildBodyList();
+    this.buildMobileBodies();
     this.buildTimebar();
     this.buildSettings();
     this.buildHelp();
     this.bindKeys();
+    this.setupMobile();
 
     document.getElementById('btn-help').addEventListener('click', () => this.toggleHelp());
     document.getElementById('btn-settings').addEventListener('click', () => {
       this.el.settings.classList.toggle('hidden');
+      if (this.el.mobileBodies) this.el.mobileBodies.classList.add('hidden');
     });
+    const bodiesBtn = document.getElementById('btn-bodies');
+    if (bodiesBtn) {
+      bodiesBtn.addEventListener('click', () => {
+        this.el.settings.classList.add('hidden');
+        this.el.mobileBodies?.classList.toggle('hidden');
+      });
+    }
+  }
+
+  isMobile() {
+    return this.mobileMq.matches;
+  }
+
+  setupMobile() {
+    const apply = () => {
+      document.body.classList.toggle('is-mobile', this.isMobile());
+      if (this.isMobile() && this.h.forceSolar) this.h.forceSolar();
+      if (!this.isMobile() && this.el.mobileBodies) this.el.mobileBodies.classList.add('hidden');
+    };
+    apply();
+    this.mobileMq.addEventListener('change', apply);
   }
 
   // ---------------- body navigator ----------------
 
   buildBodyList() {
     const root = this.el.bodyList;
+    if (!root) return;
     root.innerHTML = '<div class="list-title">Bodies</div>';
     for (const section of this.h.sections) {
       const sec = document.createElement('div');
@@ -114,6 +141,39 @@ export class UI {
       }
       root.appendChild(sec);
     }
+  }
+
+  buildMobileBodies() {
+    const root = this.el.mobileBodies;
+    if (!root) return;
+    root.innerHTML = `
+      <div class="mobile-bodies-head">
+        <span class="list-title" style="padding:10px 12px 6px;">Bodies</span>
+        <button class="panel-close" type="button" title="Close">×</button>
+      </div>
+      <div class="mobile-chip-scroll" id="mobile-chip-scroll"></div>`;
+    root.querySelector('.panel-close').addEventListener('click', () => root.classList.add('hidden'));
+    const scroll = root.querySelector('#mobile-chip-scroll');
+    for (const section of this.h.sections) {
+      for (const rec of section.items) {
+        scroll.appendChild(this.mobileChip(rec));
+        if (rec.moons) for (const m of rec.moons) scroll.appendChild(this.mobileChip(m, true));
+      }
+    }
+  }
+
+  mobileChip(rec, isMoon = false) {
+    const hex = '#' + rec.def.color.toString(16).padStart(6, '0');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mobile-chip' + (isMoon ? ' moon' : '');
+    b.dataset.id = rec.def.id;
+    b.innerHTML = `<span class="dot" style="background:${hex}"></span>${rec.def.name}`;
+    b.addEventListener('click', () => {
+      this.h.select(rec.def.id, { focus: true });
+      this.el.mobileBodies.classList.add('hidden');
+    });
+    return b;
   }
 
   bodyRow(rec, isMoon = false) {
@@ -135,11 +195,14 @@ export class UI {
   }
 
   markSelected(id) {
-    this.el.bodyList.querySelectorAll('.body-row').forEach((r) => {
+    this.el.bodyList?.querySelectorAll('.body-row').forEach((r) => {
       r.classList.toggle('selected', r.dataset.id === id);
       if (r.dataset.id === id && r.parentElement.classList.contains('moon-rows')) {
         r.parentElement.classList.add('open');
       }
+    });
+    this.el.mobileBodies?.querySelectorAll('.mobile-chip').forEach((c) => {
+      c.classList.toggle('selected', c.dataset.id === id);
     });
   }
 
@@ -152,23 +215,28 @@ export class UI {
     const typeLabel = rec.isMoon
       ? `Moon of ${rec.parent.def.name}`
       : (TYPE_LABEL[rec.def.type] || 'Body');
+    const mobile = this.isMobile();
 
     const rows = [];
     const add = (k, v) => { if (v) rows.push(`<div class="stat-k">${k}</div><div class="stat-v">${v}</div>`); };
     add('Radius', `${fmtKm(rec.def.radiusKm)}`);
     add('Mass', fmtMass(info.massKg));
-    if (info.gravity) add('Gravity', `${info.gravity} m/s²`);
-    if (info.density) add('Density', `${info.density} g/cm³`);
-    add('Day length', info.dayLength);
-    add('Year length', info.yearLength || (rec.def.periodDays ? `${rec.def.periodDays.toFixed(2)} days` : null));
-    if (!rec.isMoon && rec.def.tiltDeg !== undefined && rec.def.type !== 'comet') {
-      add('Axial tilt', `${rec.def.tiltDeg.toFixed(1)}° (to ecliptic)`);
+    if (!mobile) {
+      if (info.gravity) add('Gravity', `${info.gravity} m/s²`);
+      if (info.density) add('Density', `${info.density} g/cm³`);
+      add('Day length', info.dayLength);
+      add('Year length', info.yearLength || (rec.def.periodDays ? `${rec.def.periodDays.toFixed(2)} days` : null));
+      if (!rec.isMoon && rec.def.tiltDeg !== undefined && rec.def.type !== 'comet') {
+        add('Axial tilt', `${rec.def.tiltDeg.toFixed(1)}° (to ecliptic)`);
+      }
+      if (rec.def.elements) add('Eccentricity', rec.def.elements.e[0].toFixed(4));
+      add('Temperature', info.temp);
+      add('Atmosphere', info.atmosphere);
+    } else {
+      add('Year', info.yearLength || (rec.def.periodDays ? `${rec.def.periodDays.toFixed(1)} d` : null));
     }
-    if (rec.def.elements) add('Eccentricity', rec.def.elements.e[0].toFixed(4));
-    add('Temperature', info.temp);
-    add('Atmosphere', info.atmosphere);
 
-    const experiment = !rec.isMoon ? `
+    const experiment = (!mobile && !rec.isMoon) ? `
       <div class="lab-block">
         <div class="lab-block-title">Experiment
           <span class="lab-hint" id="exp-hint"></span>
@@ -183,19 +251,23 @@ export class UI {
         </div>
       </div>` : '';
 
-    const moonChips = rec.moons && rec.moons.length
+    const moonChips = (!mobile && rec.moons && rec.moons.length)
       ? `<div class="chip-row"><span class="chip-label">Moons</span>${rec.moons.map((m) =>
         `<button class="chip" data-id="${m.def.id}">${m.def.name}</button>`).join('')}</div>`
       : '';
-    const parentChip = rec.isMoon
+    const parentChip = (!mobile && rec.isMoon)
       ? `<div class="chip-row"><span class="chip-label">Orbits</span><button class="chip" data-id="${rec.parent.def.id}">${rec.parent.def.name}</button></div>`
       : '';
+
+    const desc = mobile
+      ? (info.description ? `<p class="info-desc">${info.description.split('.')[0]}.</p>` : '')
+      : `<p class="info-desc">${info.description || ''}</p>`;
 
     this.el.info.innerHTML = `
       <button class="panel-close" title="Close">×</button>
       <div class="info-type">${typeLabel}</div>
       <h2 class="info-name">${rec.def.name}</h2>
-      <p class="info-desc">${info.description || ''}</p>
+      ${desc}
       <div class="live-grid">
         <div class="live-tile"><div class="live-k" id="live-k1"></div><div class="live-v" id="live-v1"></div></div>
         <div class="live-tile"><div class="live-k" id="live-k2"></div><div class="live-v" id="live-v2"></div></div>
@@ -206,15 +278,17 @@ export class UI {
       ${moonChips}${parentChip}
       ${experiment}
       <div class="btn-row">
-        <button class="btn primary" id="btn-refocus">Focus camera</button>
-        <button class="btn" id="btn-overview">Overview</button>
-        ${rec.def.id === 'earth' ? '<button class="btn earth-lab-btn" id="btn-earthlab">🌍 Earth Lab</button>' : ''}
+        <button class="btn primary" id="btn-refocus">Focus</button>
+        ${mobile ? '' : '<button class="btn" id="btn-overview">Overview</button>'}
+        ${(!mobile && rec.def.id === 'earth') ? '<button class="btn earth-lab-btn" id="btn-earthlab">🌍 Earth Lab</button>' : ''}
       </div>`;
 
     this.el.info.classList.remove('hidden');
+    this.el.mobileBodies?.classList.add('hidden');
     this.el.info.querySelector('.panel-close').addEventListener('click', () => this.closeInfo());
     this.el.info.querySelector('#btn-refocus').addEventListener('click', () => this.h.focus(rec.def.id));
-    this.el.info.querySelector('#btn-overview').addEventListener('click', () => this.h.overview());
+    const overviewBtn = this.el.info.querySelector('#btn-overview');
+    if (overviewBtn) overviewBtn.addEventListener('click', () => this.h.overview());
     const earthBtn = this.el.info.querySelector('#btn-earthlab');
     if (earthBtn && this.h.openEarthLab) {
       earthBtn.addEventListener('click', () => this.h.openEarthLab());
@@ -222,7 +296,7 @@ export class UI {
     this.el.info.querySelectorAll('.chip').forEach((c) =>
       c.addEventListener('click', () => this.h.select(c.dataset.id, { focus: true })));
 
-    if (!rec.isMoon && this.h.experiment) {
+    if (!mobile && !rec.isMoon && this.h.experiment) {
       const slider = this.el.info.querySelector('#exp-mass');
       const val = this.el.info.querySelector('#exp-mass-val');
       const showMul = () => {
@@ -317,6 +391,7 @@ export class UI {
   updateStateBlock(rec) {
     const el = document.getElementById('state-block');
     if (!el || !this.h.physicsInfo) return;
+    if (this.isMobile()) { el.innerHTML = ''; return; }
     const pi = this.h.physicsInfo(rec.def.id);
     if (!pi) { el.innerHTML = ''; return; }
     if (pi.destroyed) {
@@ -427,10 +502,10 @@ export class UI {
       <div class="list-title">Display</div>
       <label class="setting"><input type="checkbox" id="s-orbits" checked /> Orbit lines</label>
       <label class="setting"><input type="checkbox" id="s-labels" checked /> Labels</label>
-      <label class="setting"><input type="checkbox" id="s-belt" checked /> Asteroid belt</label>
-      <label class="setting"><input type="checkbox" id="s-kuiper" checked /> Kuiper belt</label>
-      <label class="setting"><input type="checkbox" id="s-grid" /> Ecliptic grid</label>
-      <label class="setting"><input type="checkbox" id="s-bloom" checked /> Bloom glow</label>
+      <label class="setting desktop-only"><input type="checkbox" id="s-belt" checked /> Asteroid belt</label>
+      <label class="setting desktop-only"><input type="checkbox" id="s-kuiper" checked /> Kuiper belt</label>
+      <label class="setting desktop-only"><input type="checkbox" id="s-grid" /> Ecliptic grid</label>
+      <label class="setting desktop-only"><input type="checkbox" id="s-bloom" checked /> Bloom glow</label>
       <div class="setting-slider">
         <div class="setting-row"><span>Body size</span><span id="s-scale-val"></span></div>
         <input type="range" id="s-scale" min="0" max="100" step="0.5" />
@@ -438,7 +513,7 @@ export class UI {
           <button id="s-true" class="btn tiny">True scale</button>
           <button id="s-cine" class="btn tiny">Cinematic</button>
         </div>
-        <p class="setting-note">Distances are always real. This only exaggerates body sizes so planets are visible at solar-system zoom.</p>
+        <p class="setting-note desktop-only">Distances are always real. This only exaggerates body sizes so planets are visible at solar-system zoom.</p>
       </div>`;
 
     const scale = s.querySelector('#s-scale');
@@ -454,7 +529,10 @@ export class UI {
     s.querySelector('#s-true').addEventListener('click', () => { scale.value = 0; applyFromSlider(); });
     s.querySelector('#s-cine').addEventListener('click', () => { scale.value = this.h.defaultScaleSlider; applyFromSlider(); });
 
-    const bind = (id, fn) => s.querySelector(id).addEventListener('change', (e) => fn(e.target.checked));
+    const bind = (id, fn) => {
+      const el = s.querySelector(id);
+      if (el) el.addEventListener('change', (e) => fn(e.target.checked));
+    };
     bind('#s-orbits', t.orbits);
     bind('#s-labels', t.labels);
     bind('#s-belt', t.belt);
@@ -472,10 +550,30 @@ export class UI {
 
   // rendered at open time so the shortcuts match the active tab
   renderHelp() {
+    if (this.isMobile()) {
+      this.el.help.innerHTML = `
+        <div class="help-card">
+          <button class="panel-close" title="Close">×</button>
+          <h2>Observatory</h2>
+          <p class="help-sub">A real-ephemeris solar system. Tap a body or open Bodies to explore. Pinch and drag to orbit.</p>
+          <div class="help-grid">
+            <span>Bodies</span><span>pick a planet or moon</span>
+            <span>Drag / pinch</span><span>orbit and zoom</span>
+            <span>Pause</span><span>freeze or resume time</span>
+            <span>Rate slider</span><span>speed up the clock</span>
+            <span>Now</span><span>jump to today</span>
+            <span>Focus</span><span>fly the camera to a body</span>
+          </div>
+          <p class="help-tip">Labs, recording, and N-body experiments are available on a larger screen.</p>
+        </div>`;
+      this.el.help.querySelector('.panel-close').addEventListener('click', () => this.toggleHelp());
+      return;
+    }
     const math = this.h.isMath && this.h.isMath();
     const earth = this.h.isEarth && this.h.isEarth();
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
+    const photo = this.h.isPhoto && this.h.isPhoto();
     const solarGrid = `
       <span>Click body / label</span><span>select and fly to it</span>
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -487,7 +585,7 @@ export class UI {
       <span>E</span><span>physics lab (N-body experiments)</span>
       <span>S</span><span>snapshot PNG</span>
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
-      <span>Tabs</span><span>Equation / Earth / Light / Gravity labs</span>
+      <span>Tabs</span><span>Equation / Earth / Light / Gravity / Photo labs</span>
       <span>H</span><span>this help</span>`;
     const mathGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -531,6 +629,15 @@ export class UI {
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
       <span>Esc</span><span>reframe the view</span>
       <span>H</span><span>this help</span>`;
+    const photoGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Space</span><span>pause / resume photons and bubbles</span>
+      <span>Photoelectric</span><span>metal cathode, λ, intensity, retarding V</span>
+      <span>Photosynthesis</span><span>pigment mix, action spectrum, O₂ rate</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>Esc</span><span>reframe the bench</span>
+      <span>H</span><span>this help</span>`;
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
       : earth
@@ -539,7 +646,9 @@ export class UI {
           ? 'Light Lab: geometric optics with Cauchy dispersion and Fresnel intensities. Every ray is traced bounce-by-bounce with θi, θt, R/T, optical path length and time of flight.'
           : gravity
             ? 'Gravity Lab: leapfrog N-body with massless tracers, plus pedagogical quantum-gravity toys (LQG bounce, running G, massive graviton, spacetime foam, Hawking evaporation, Schrödinger-Newton).'
-            : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
+            : photo
+              ? 'Photo Lab: Einstein photoelectric effect (hf − φ, stopping potential, photocurrent) and light-dependent photosynthesis (pigment absorbance, quantum yield, action spectrum).'
+              : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
       : earth
@@ -548,9 +657,11 @@ export class UI {
           ? 'Try it: open Prism dispersion and raise the wavelength count. Click a violet ray and read its Snell residual, then switch to Total internal reflection and fan past θc.'
           : gravity
             ? 'Try it: open Quantum bounce and watch free-fall reverse at ℓ_b, then switch to Hawking evaporation and raise κ until outer orbits unbind.'
-            : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
-    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : 'Observatory';
-    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : solarGrid;
+            : photo
+              ? 'Try it: on Sodium, drop λ below ~525 nm until electrons fly, then raise retarding V past Vs to kill the current. Switch to Photosynthesis and slide λ through the green trough.'
+              : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
+    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : photo ? 'Photo Lab' : 'Observatory';
+    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : photo ? photoGrid : solarGrid;
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
@@ -625,6 +736,19 @@ export class UI {
         }
         return;
       }
+      if (this.h.isPhoto && this.h.isPhoto()) {
+        switch (e.key) {
+          case ' ': e.preventDefault(); if (this.h.photoPlayPause) this.h.photoPlayPause(); break;
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.photoEscape) this.h.photoEscape();
+            break;
+        }
+        return;
+      }
       const clock = this.h.clock;
       switch (e.key) {
         case ' ': e.preventDefault(); this.togglePause(); break;
@@ -664,24 +788,33 @@ export class UI {
     const earth = this.h.isEarth && this.h.isEarth();
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
-    if (math || earth || light || gravity) {
+    const photo = this.h.isPhoto && this.h.isPhoto();
+    if (math || earth || light || gravity || photo) {
       this.el.dateText.textContent = math
         ? (this.h.mathStatus ? this.h.mathStatus() : '')
         : earth
           ? (this.h.earthStatus ? this.h.earthStatus() : '')
           : light
             ? (this.h.lightStatus ? this.h.lightStatus() : '')
-            : (this.h.gravityStatus ? this.h.gravityStatus() : '');
+            : gravity
+              ? (this.h.gravityStatus ? this.h.gravityStatus() : '')
+              : (this.h.photoStatus ? this.h.photoStatus() : '');
       this.el.liveBadge.classList.remove('on');
       const expBadge = document.getElementById('exp-badge');
       if (expBadge) expBadge.classList.remove('on');
       return;
     }
     this.el.dateText.textContent = fmtDate(clock.date);
+    if (this.isMobile()) {
+      const d = clock.date;
+      const p = (n) => String(n).padStart(2, '0');
+      this.el.dateText.textContent =
+        `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+    }
     const physics = this.h.isPhysics && this.h.isPhysics();
     this.el.liveBadge.classList.toggle('on', !physics && clock.isLive());
     const expBadge = document.getElementById('exp-badge');
-    if (expBadge) expBadge.classList.toggle('on', !!physics);
+    if (expBadge) expBadge.classList.toggle('on', !!physics && !this.isMobile());
     if (clock.paused) this.rateLabel.textContent = 'Paused';
 
     this.liveAcc += dt;

@@ -46,6 +46,7 @@ Three **instruments** share one engine (renderer, camera, trails, HUD):
 | **Earth Lab** | Geophysics and offshore engineering | What is Earth made of, and how does a real mooring behave under weather? |
 | **Light Lab** | Geometric optics | Where does each ray go, and what does Snell / Fresnel / dispersion do to it? |
 | **Gravity Lab** | Orbital mechanics + QG toys | What orbit is this particle on, and what if gravity were quantum-corrected? |
+| **Photo Lab** | Photons and biology | When does light eject electrons, and which colors drive photosynthesis? |
 
 ---
 
@@ -66,7 +67,7 @@ time for a context-aware help card, **S** for a PNG snapshot, and **V** to recor
 
 ---
 
-## The five instruments
+## The six instruments
 
 ### 1. Solar System
 
@@ -192,6 +193,20 @@ force-law exponent so you can break 1/r² on purpose; and six effective QG model
   - **Schrödinger-Newton:** self-gravitating packet + Bohm-like quantum pressure
 - **Potential well:** a live mesh of Φ colored by depth; trails on tracers; Roche / scale rings.
 
+### 6. Photo Lab
+
+Two photon experiments side by side: Einstein's photoelectric effect and light-dependent
+photosynthesis.
+
+- **Photoelectric:** vacuum-tube cathode bench. Pick a metal (Cs through Pt), set λ and
+  intensity, and watch photons hit the plate. Electrons eject only when hf > φ; their
+  kinetic energy is K_max = hf − φ. Raise retarding voltage past the stopping potential
+  V_s = K_max/e to kill the photocurrent. Live Einstein readout and an I-V scan.
+- **Photosynthesis:** chloroplast with pigment mix (chlorophyll a/b, carotenoids). Slide
+  wavelength through the spectrum; green sits in the absorption trough so the relative
+  rate drops. Action-spectrum canvas shows absorbance vs photosynthetic rate; O₂ bubbles
+  mark productive absorption events.
+
 ---
 
 ## Traces and information
@@ -247,6 +262,8 @@ Observatory is meant to be trustworthy enough to reason with, so the methods are
 | Earth interior | Layer radii and densities | PREM (Preliminary Reference Earth Model), IUGG values |
 | Ray optics | Snell's law, Fresnel R/T (unpolarized), TIR, Cauchy n(λ) = A + B/λ² | Hecht, Optics; Schott / standard glass catalogs |
 | Gravity sandbox | Symplectic leapfrog; orbital elements from h and e vectors; F ∝ 1/rⁿ | Vallado / Battin; Bertrand's theorem |
+| Photoelectric | Einstein K_max = hf − φ; stopping potential; photocurrent ∝ intensity above threshold | CODATA h, e, c; standard metal work functions |
+| Photosynthesis | Pigment absorbance (Gaussian peaks), quantum yield, action spectrum | Chlorophyll a/b and carotenoid in-vivo peaks |
 
 Numbers are checked against known values where possible. For example, the default mooring
 case (30 m depth, 300 m span, 315 m chain at 250 kg/m) reproduces the analytic catenary
@@ -316,6 +333,9 @@ src/
     quantum.js         Pedagogical QG effective models (bounce, running G, ...)
     presets.js         Classical + quantum-gravity presets
     gravitylab.js      Potential well, tracers, trails, picking
+  photo/               Photo Lab
+    photoPhysics.js    Einstein PE, work functions, pigment absorbance, action spectrum
+    photolab.js        Cathode tube + chloroplast scenes, photon/electron/O2 particles
   camera/
     focus.js           Fly-to and follow-along camera controller
   textures/
@@ -327,6 +347,7 @@ src/
     earthPanel.js      Interior explorer + mooring workbench
     lightPanel.js      Optics presets, live params, ray-by-ray table + event log
     gravityPanel.js    Classical + QG presets, live params, particle table
+    photoPanel.js      PE metals + I-V; photosynthesis mix + action spectrum
 ```
 
 **Scene conventions (important when adding anything):**

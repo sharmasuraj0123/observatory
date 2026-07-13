@@ -25,10 +25,11 @@
       <span class="brand-name">Observatory</span>
       <div class="seg tabs" id="tab-switch">
         <button id="tab-solar" class="active">Solar system</button>
-        <button id="tab-math">Equation lab</button>
-        <button id="tab-earth">Earth lab</button>
-        <button id="tab-light">Light lab</button>
-        <button id="tab-gravity">Gravity lab</button>
+        <button id="tab-math" class="desktop-only">Equation lab</button>
+        <button id="tab-earth" class="desktop-only">Earth lab</button>
+        <button id="tab-light" class="desktop-only">Light lab</button>
+        <button id="tab-gravity" class="desktop-only">Gravity lab</button>
+        <button id="tab-photo" class="desktop-only">Photo lab</button>
       </div>
     </div>
     <div id="sim-date">
@@ -38,28 +39,31 @@
       <span id="rec-badge" class="live-badge rec">● REC</span>
     </div>
     <div class="top-actions">
-      <button id="btn-snap" class="tbtn" title="Snapshot (S)">📷</button>
-      <button id="btn-record" class="tbtn" title="Record trace video with XO HUD + data, max 10s (V)" aria-pressed="false">⏺</button>
+      <button id="btn-bodies" class="tbtn mobile-only" title="Bodies" aria-label="Bodies">◎</button>
+      <button id="btn-snap" class="tbtn desktop-only" title="Snapshot (S)">📷</button>
+      <button id="btn-record" class="tbtn desktop-only" title="Record trace video with XO HUD + data, max 10s (V)" aria-pressed="false">⏺</button>
       <button id="btn-help" class="tbtn" title="Help (H)">?</button>
-      <button id="btn-lab" class="tbtn" title="Physics lab (E)">⚗</button>
+      <button id="btn-lab" class="tbtn desktop-only" title="Physics lab (E)">⚗</button>
       <button id="btn-settings" class="tbtn" title="Display settings">⚙</button>
     </div>
   </header>
 
-  <nav id="body-list" class="panel"></nav>
+  <nav id="body-list" class="panel desktop-only"></nav>
+  <nav id="mobile-bodies" class="panel mobile-only hidden"></nav>
   <aside id="info-panel" class="panel hidden"></aside>
   <div id="settings-panel" class="panel hidden"></div>
-  <div id="lab-panel" class="panel hidden"></div>
+  <div id="lab-panel" class="panel hidden desktop-only"></div>
   <aside id="equation-panel" class="panel hidden"></aside>
   <aside id="earth-panel" class="panel hidden"></aside>
   <aside id="light-panel" class="panel hidden"></aside>
   <aside id="gravity-panel" class="panel hidden"></aside>
+  <aside id="photo-panel" class="panel hidden"></aside>
   <footer id="timebar" class="panel"></footer>
   <footer id="math-timebar" class="panel hidden"></footer>
   <div id="help-overlay" class="overlay hidden"></div>
   <div id="trace-results" class="overlay hidden"></div>
 
-  <div id="attribution">
+  <div id="attribution" class="desktop-only">
     Ephemerides: JPL Keplerian elements · Textures: Solar System Scope (CC BY 4.0) · Press H for help
   </div>
 

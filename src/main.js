@@ -20,6 +20,8 @@ import { LightLab } from './light/lightlab.js';
 import { LightPanel } from './ui/lightPanel.js';
 import { GravityLab } from './gravity/gravitylab.js';
 import { GravityPanel } from './ui/gravityPanel.js';
+import { PhotoLab } from './photo/photolab.js';
+import { PhotoPanel } from './ui/photoPanel.js';
 import { createRecorder, RECORD_MAX_MS } from './capture/recorder.js';
 import { TraceResultsPanel } from './ui/traceResults.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
@@ -393,7 +395,11 @@ async function init() {
   const earthlab = new EarthLab(scene, getTexture);
   const lightlab = new LightLab(scene);
   const gravitylab = new GravityLab(scene, getTexture);
-  const tabState = { mode: 'solar', cams: { solar: null, math: null, earth: null, light: null, gravity: null } };
+  const photolab = new PhotoLab(scene);
+  const tabState = {
+    mode: 'solar',
+    cams: { solar: null, math: null, earth: null, light: null, gravity: null, photo: null },
+  };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
   const EARTH_HOMES = {
@@ -402,6 +408,10 @@ async function init() {
   };
   const LIGHT_HOME = { pos: new THREE.Vector3(20, 30, 240), target: new THREE.Vector3(30, 5, 0) };
   const GRAVITY_HOME = { pos: new THREE.Vector3(16, 22, 26), target: new THREE.Vector3(0, -2, 0) };
+  const PHOTO_HOMES = {
+    photoelectric: { pos: new THREE.Vector3(0, 28, 55), target: new THREE.Vector3(0, 6, 0) },
+    photosynthesis: { pos: new THREE.Vector3(8, 22, 48), target: new THREE.Vector3(0, 2, 0) },
+  };
 
   function setMode(mode) {
     if (mode === tabState.mode) return;
@@ -412,6 +422,7 @@ async function init() {
     const isEarth = mode === 'earth';
     const isLight = mode === 'light';
     const isGravity = mode === 'gravity';
+    const isPhoto = mode === 'photo';
     const isSolar = mode === 'solar';
 
     focusCtl.release();
@@ -421,6 +432,7 @@ async function init() {
     earthlab.group.visible = isEarth;
     lightlab.group.visible = isLight;
     gravitylab.group.visible = isGravity;
+    photolab.group.visible = isPhoto;
 
     // the N-body experiment does not integrate while other tabs are open but
     // solar time keeps flowing; catch it up (or re-seed after a long gap)
@@ -449,6 +461,7 @@ async function init() {
     document.getElementById('earth-panel').classList.toggle('hidden', !isEarth);
     document.getElementById('light-panel').classList.toggle('hidden', !isLight);
     document.getElementById('gravity-panel').classList.toggle('hidden', !isGravity);
+    document.getElementById('photo-panel').classList.toggle('hidden', !isPhoto);
     document.getElementById('btn-lab').classList.toggle('hidden', !isSolar);
     document.getElementById('btn-settings').classList.toggle('hidden', !isSolar);
     document.getElementById('settings-panel').classList.add('hidden');
@@ -460,6 +473,7 @@ async function init() {
     document.getElementById('tab-earth').classList.toggle('active', isEarth);
     document.getElementById('tab-light').classList.toggle('active', isLight);
     document.getElementById('tab-gravity').classList.toggle('active', isGravity);
+    document.getElementById('tab-photo').classList.toggle('active', isPhoto);
 
     const restore = tabState.cams[mode];
     if (restore) {
@@ -480,6 +494,10 @@ async function init() {
       const cam = gravitylab.preset?.camera || GRAVITY_HOME;
       camera.position.fromArray(cam.pos);
       controls.target.fromArray(cam.target);
+    } else if (isPhoto) {
+      const home = PHOTO_HOMES[photolab.submode] || PHOTO_HOMES.photoelectric;
+      camera.position.copy(home.pos);
+      controls.target.copy(home.target);
     }
     focusCtl.baseMinDistance = isSolar ? 0.2 : isMath ? 0.6 : 1.5;
     controls.minDistance = focusCtl.baseMinDistance;
@@ -491,6 +509,7 @@ async function init() {
   document.getElementById('tab-earth').addEventListener('click', () => setMode('earth'));
   document.getElementById('tab-light').addEventListener('click', () => setMode('light'));
   document.getElementById('tab-gravity').addEventListener('click', () => setMode('gravity'));
+  document.getElementById('tab-photo').addEventListener('click', () => setMode('photo'));
 
   // Shared filename stem for PNG / WebM captures (HUD is DOM and stays out of frame).
   function captureTag() {
@@ -502,7 +521,9 @@ async function init() {
           ? `light-${(lightlab.preset && lightlab.preset.id) || 'optics'}-r${lightlab.rays.length}`
           : tabState.mode === 'gravity'
             ? `gravity-${(gravitylab.preset && gravitylab.preset.id) || 'orbit'}-t${Math.round(gravitylab.sim.t)}`
-            : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            : tabState.mode === 'photo'
+              ? `photo-${photolab.submode}-t${Math.round(photolab.t)}`
+              : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
   }
 
   // PNG snapshot of the rendered scene.
@@ -636,6 +657,23 @@ async function init() {
     },
   });
 
+  const photoPanel = new PhotoPanel(photolab, {
+    setSubmode: (m) => {
+      photolab.setSubmode(m);
+      if (tabState.mode === 'photo') {
+        const home = PHOTO_HOMES[m] || PHOTO_HOMES.photoelectric;
+        focusCtl.overview(home.pos, home.target);
+      }
+    },
+    frameView: (cam) => {
+      if (tabState.mode !== 'photo') return;
+      const home = PHOTO_HOMES[photolab.submode] || PHOTO_HOMES.photoelectric;
+      const pos = cam ? new THREE.Vector3(...cam.pos) : home.pos;
+      const target = cam ? new THREE.Vector3(...cam.target) : home.target;
+      focusCtl.overview(pos, target);
+    },
+  });
+
   // a diverged particle 0 respawns across the scene; re-anchor the follow
   // camera after its worldPos is refreshed so it does not teleport violently
   mathlab.onP0Respawn = () => {
@@ -662,6 +700,9 @@ async function init() {
     escape: () => {
       if (focusCtl.target) focusCtl.release();
       else { focusCtl.overview(); ui.closeInfo(); }
+    },
+    forceSolar: () => {
+      if (tabState.mode !== 'solar') setMode('solar');
     },
     setPlanetScale: (s) => { scaleTarget = s; },
     defaultScaleSlider: (100 * Math.log(80) / Math.log(400)).toFixed(1),
@@ -729,6 +770,16 @@ async function init() {
       else {
         const cam = gravitylab.preset?.camera || GRAVITY_HOME;
         focusCtl.overview(new THREE.Vector3(...cam.pos), new THREE.Vector3(...cam.target));
+      }
+    },
+    isPhoto: () => tabState.mode === 'photo',
+    photoStatus: () => photolab.status(),
+    photoPlayPause: () => photoPanel.togglePause(),
+    photoEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else {
+        const home = PHOTO_HOMES[photolab.submode] || PHOTO_HOMES.photoelectric;
+        focusCtl.overview(home.pos, home.target);
       }
     },
   });
@@ -899,6 +950,19 @@ async function init() {
       return;
     }
 
+    // Photo Lab tab: photoelectric effect + photosynthesis
+    if (tabState.mode === 'photo') {
+      photolab.update(dt);
+      photoPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      recorder.tick();
+      return;
+    }
+
     if (Math.abs(scaleCur - scaleTarget) > Math.max(scaleTarget, 1) * 0.002) {
       scaleCur += (scaleTarget - scaleCur) * Math.min(1, dt * 5);
       applyScale(scaleCur);
@@ -985,7 +1049,7 @@ async function init() {
   setTimeout(() => loading.remove(), 900);
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, recorder };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, recorder };
 }
 
 init();
