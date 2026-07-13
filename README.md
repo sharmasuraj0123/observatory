@@ -277,7 +277,8 @@ Observatory is meant to be trustworthy enough to reason with, so the methods are
 Numbers are checked against known values where possible. For example, the default mooring
 case (30 m depth, 300 m span, 315 m chain at 250 kg/m) reproduces the analytic catenary
 solution to within rounding: about 10.5 t stopper tension at about 68 degrees, touchdown
-about 270 m from the pile.
+about 270 m from the pile. Floating draft includes the vertical chain loads at the stoppers
+(buoy mass plus suspended chain weight).
 
 ## Deliberate approximations
 

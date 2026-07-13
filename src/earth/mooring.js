@@ -37,32 +37,67 @@ export function solveCatenary(h, X, L, w) {
     };
   }
 
+  // Excess chain on seabed: X <= L - h. Limit a→0 of the grounded catenary
+  // (near-vertical rise, almost all chain resting). Do not use the suspended
+  // solver here: that produced a large false tension jump at this boundary.
+  if (X <= L - h + 1e-9) {
+    const a = 1e-4;
+    const xs = a * Math.acosh(1 + h / a);
+    const s = Math.sqrt(h * (h + 2 * a));
+    const H = w * a;
+    const V = w * s;
+    return {
+      mode: 'grounded', a,
+      H, V, T: Math.hypot(H, V),
+      angleDeg: Math.atan2(V, H) * 180 / Math.PI,
+      touchdownAngleDeg: 0,
+      suspended: s,
+      grounded: L - s,
+      touchdownFromPile: Math.max(0, X - xs),
+      touchdownFromStopper: xs,
+    };
+  }
+
   // Case A: partially grounded. Suspended span xs = a*acosh(1 + h/a),
   // suspended length s = sqrt(h(h+2a)), and X = xs + (L - s).
-  const fGround = (a) => a * Math.acosh(1 + h / a) + (L - Math.sqrt(h * (h + 2 * a))) - X;
-  // grounded solutions exist while the anchor-side length stays on the seabed
-  let lo = 1e-6, hi = 1e8, grounded = null;
-  if (fGround(lo) <= 0 && fGround(hi) >= 0) {
-    for (let i = 0; i < 90; i++) {
-      const mid = 0.5 * (lo + hi);
-      if (fGround(mid) >= 0) hi = mid; else lo = mid;
-    }
-    const a = 0.5 * (lo + hi);
-    const s = Math.sqrt(h * (h + 2 * a));
-    if (s <= L + 1e-9) {
+  // Valid only while s < L, i.e. a < aMax = (L²/h - h)/2.
+  const aMax = (L * L / h - h) / 2;
+  let grounded = null;
+  if (aMax > 1e-6 && L > h) {
+    const fGround = (a) => {
+      const s = Math.sqrt(h * (h + 2 * a));
+      return a * Math.acosh(1 + h / a) + (L - s) - X;
+    };
+    // f(a→0+) → L - h - X; f(aMax) → xs(aMax) - X
+    let lo = Math.min(1e-3, aMax * 0.25);
+    let hi = aMax;
+    let flo = fGround(lo);
+    let fhi = fGround(hi);
+    // Only a grounded root exists when f changes sign on (0, aMax]
+    // Allow tiny negative f(aMax) from floating-point noise at exact lift-off
+    if (Number.isFinite(flo) && Number.isFinite(fhi) && flo <= 0 && fhi >= -1e-9) {
+      for (let i = 0; i < 90; i++) {
+        const mid = 0.5 * (lo + hi);
+        if (fGround(mid) >= 0) hi = mid; else lo = mid;
+      }
+      const a = 0.5 * (lo + hi);
+      const s = Math.sqrt(h * (h + 2 * a));
       const xs = a * Math.acosh(1 + h / a);
-      const H = w * a;
-      const V = w * s;
-      grounded = {
-        mode: 'grounded', a,
-        H, V, T: Math.hypot(H, V),
-        angleDeg: Math.atan2(V, H) * 180 / Math.PI,
-        // Ideal catenary leaves the seabed horizontally at the touchdown
-        touchdownAngleDeg: 0,
-        suspended: s, grounded: L - s,
-        touchdownFromPile: L - s,
-        touchdownFromStopper: xs,
-      };
+      const groundedLen = L - s;
+      if (groundedLen >= -1e-6 && Math.abs(xs + Math.max(0, groundedLen) - X) < 1e-3) {
+        const H = w * a;
+        const V = w * s;
+        grounded = {
+          mode: 'grounded', a,
+          H, V, T: Math.hypot(H, V),
+          angleDeg: Math.atan2(V, H) * 180 / Math.PI,
+          // Ideal catenary leaves the seabed horizontally at the touchdown
+          touchdownAngleDeg: 0,
+          suspended: s, grounded: Math.max(0, groundedLen),
+          touchdownFromPile: Math.max(0, groundedLen),
+          touchdownFromStopper: xs,
+        };
+      }
     }
   }
   if (grounded) return grounded;
@@ -72,7 +107,7 @@ export function solveCatenary(h, X, L, w) {
   const k = Math.sqrt(Math.max(L * L - h * h, 1e-9));
   const fSusp = (a) => 2 * a * Math.sinh(X / (2 * a)) - k;
   // fSusp decreases with a; large a -> 2a*(X/2a) = X - k (< 0 since k > X here)
-  lo = 1e-6; hi = 1e8;
+  let lo = 1e-6, hi = 1e8;
   for (let i = 0; i < 90; i++) {
     const mid = 0.5 * (lo + hi);
     if (fSusp(mid) >= 0) lo = mid; else hi = mid;
@@ -215,13 +250,20 @@ export class MooringSim {
     return this.params.chainW * G * STEEL_BUOYANCY; // N/m
   }
 
-  envForce() {
+  envForce(chains = null) {
     const p = this.params;
-    // Floating draft from buoy weight vs waterplane buoyancy (clamped to hull)
+    // Floating draft from buoy weight + vertical chain loads at the stoppers
+    // (each stopper supports the suspended chain weight V)
+    let supportedKg = p.buoyMass;
+    if (chains) {
+      for (const c of chains) {
+        if (Number.isFinite(c.sol?.V) && c.sol.V > 0) supportedKg += c.sol.V / G;
+      }
+    }
     const area = Math.PI * (p.buoyD / 2) ** 2;
-    const draftIdeal = p.buoyMass / (RHO_WATER * Math.max(area, 1e-6));
+    const draftIdeal = supportedKg / (RHO_WATER * Math.max(area, 1e-6));
     const draft = Math.min(Math.max(draftIdeal, 0.4), p.buoyH - 0.4);
-    const freeboard = p.buoyH - draft;
+    const freeboard = Math.max(p.buoyH - draft, 0.2);
     const wd = p.windDir * Math.PI / 180;
     const cd = p.curDir * Math.PI / 180;
     const Fwind = 0.5 * RHO_AIR * 1.0 * (p.buoyD * freeboard) * p.windU * p.windU;
@@ -232,7 +274,7 @@ export class MooringSim {
       x: Fwind * Math.cos(wd) + Fdrift * Math.cos(wd) + Fcur * Math.cos(cd),
       z: Fwind * Math.sin(wd) + Fdrift * Math.sin(wd) + Fcur * Math.sin(cd),
       wind: Fwind, current: Fcur, drift: Fdrift,
-      draft, freeboard,
+      draft, freeboard, supportedKg,
     };
   }
 
@@ -246,12 +288,13 @@ export class MooringSim {
       // stopper on the buoy rim, on the side facing this pile
       const dx = pile.x - this.buoy.x;
       const dz = pile.z - this.buoy.z;
-      const dist = Math.hypot(dx, dz);
+      const dist = Math.hypot(dx, dz) || 1e-9;
       const ux = dx / dist, uz = dz / dist;
       const sx = this.buoy.x + ux * rBuoy;
       const sz = this.buoy.z + uz * rBuoy;
       const X = Math.max(1, Math.hypot(pile.x - sx, pile.z - sz));
-      const h = p.depth + this.surface(sx, sz, this.t);
+      // Vertical span: still-water depth plus local wave elevation at the stopper
+      const h = Math.max(1, p.depth + this.surface(sx, sz, this.t));
       const sol = solveCatenary(h, X, p.chainLen, w);
       out.push({ sol, X, h, sx, sz, ux, uz, pile });
     }
@@ -263,17 +306,22 @@ export class MooringSim {
     const p = this.params;
     const sub = Math.max(1, Math.ceil(dt / 0.05));
     const hdt = dt / sub;
-    const env = this.envForce();
-    // Structural mass + hydrodynamic added mass (~1× displaced water)
-    const disp = RHO_WATER * Math.PI * (p.buoyD / 2) ** 2 * env.draft;
-    const mEff = Math.max(p.buoyMass, 1e3) + disp;
-    const damp = 0.35 * Math.sqrt(mEff * 2e3) + 2e4; // broad, stable damping
+    let env = null;
 
     for (let s = 0; s < sub; s++) {
       const chains = this.solveChains();
+      // Draft (and thus wind/current areas) includes hanging chain weight
+      env = this.envForce(chains);
+      const disp = RHO_WATER * Math.PI * (p.buoyD / 2) ** 2 * env.draft;
+      const mEff = Math.max(p.buoyMass, 1e3) + disp;
+      const damp = 0.35 * Math.sqrt(mEff * 2e3) + 2e4;
+
       let fx = env.x, fz = env.z;
       for (const c of chains) {
-        const H = Number.isFinite(c.sol.H) ? Math.min(c.sol.H, p.mbl * 1000 * 2) : p.mbl * 1000 * 2;
+        // Horizontal restoring only; clamp taut lines to 2× MBL
+        const H = Number.isFinite(c.sol.H)
+          ? Math.min(c.sol.H, p.mbl * 1000 * 2)
+          : p.mbl * 1000 * 2;
         fx += c.ux * H;
         fz += c.uz * H;
       }
@@ -285,8 +333,8 @@ export class MooringSim {
       this.t += hdt;
     }
     this.buoy.heave = this.surface(this.buoy.x, this.buoy.z, this.t);
-    this.lastEnv = env;
     this.lastChains = this.solveChains();
+    this.lastEnv = this.envForce(this.lastChains);
     return this.lastChains;
   }
 }

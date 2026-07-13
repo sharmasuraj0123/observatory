@@ -351,7 +351,7 @@ export class EarthPanel {
       : (worst?.mode || 'grounded / suspended');
     const massT = (sim.params.buoyMass / 1000).toFixed(0);
     sum.innerHTML = `
-      <div>Real-time sim <b>t = ${sim.t.toFixed(0)} s</b> · buoy <b>${massT} t</b> · draft <b>${env.draft.toFixed(2)} m</b> · excursion <b>${exc.toFixed(2)} m</b> · heave <b>${sim.buoy.heave.toFixed(2)} m</b></div>
+      <div>Real-time sim <b>t = ${sim.t.toFixed(0)} s</b> · buoy <b>${massT} t</b> · supported <b>${((env.supportedKg || sim.params.buoyMass) / 1000).toFixed(0)} t</b> · draft <b>${env.draft.toFixed(2)} m</b> · excursion <b>${exc.toFixed(2)} m</b> · heave <b>${sim.buoy.heave.toFixed(2)} m</b></div>
       <div>Weather: wind <b>${(env.wind / 1000).toFixed(1)} kN</b> · current <b>${(env.current / 1000).toFixed(1)} kN</b> · wave drift <b>${(env.drift / 1000).toFixed(1)} kN</b></div>
       <div>Chain submerged weight <b>${(sim.submergedW() / 9.80665).toFixed(0)} kg/m</b> · governing mode <b>${modeHint}</b> · MBL use <b>${Number.isFinite(maxT) ? Math.round(maxT / mblN * 100) + '%' : 'TAUT'}</b></div>`;
   }
