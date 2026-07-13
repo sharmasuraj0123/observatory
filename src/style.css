@@ -417,12 +417,21 @@ html, body {
   margin-left: 18px;
   align-self: center;
 }
+.tabs a,
 .tabs button {
   padding: 6px 10px;
   font-size: 10.5px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  box-sizing: border-box;
 }
+.tabs a:hover { color: var(--text); }
 
 /* ---------- equation lab ---------- */
 
@@ -684,6 +693,7 @@ html, body {
   gap: 5px;
   padding: 2px 16px 8px;
 }
+.seg a,
 .seg button {
   flex: 1;
   background: rgba(38, 48, 74, 0.6);
@@ -695,7 +705,11 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
+  font-family: inherit;
+  text-decoration: none;
+  text-align: center;
 }
+.seg a.active,
 .seg button.active {
   background: rgba(255, 180, 84, 0.16);
   border-color: rgba(255, 190, 110, 0.45);
@@ -1170,6 +1184,42 @@ input[type='range']::-moz-range-thumb {
   #lab-panel,
   #trace-results {
     display: none !important;
+  }
+
+  /* Deep-linked labs stay usable on small screens */
+  body.is-mobile[data-mode="math"] #equation-panel,
+  body.is-mobile[data-mode="math"] #math-timebar { display: block !important; }
+  body.is-mobile[data-mode="earth"] #earth-panel { display: block !important; }
+  body.is-mobile[data-mode="light"] #light-panel { display: block !important; }
+  body.is-mobile[data-mode="gravity"] #gravity-panel { display: block !important; }
+  body.is-mobile[data-mode="photo"] #photo-panel { display: block !important; }
+
+  body.is-mobile[data-mode="math"] #equation-panel,
+  body.is-mobile[data-mode="earth"] #earth-panel,
+  body.is-mobile[data-mode="light"] #light-panel,
+  body.is-mobile[data-mode="gravity"] #gravity-panel,
+  body.is-mobile[data-mode="photo"] #photo-panel {
+    top: auto;
+    right: 10px;
+    left: 10px;
+    bottom: 88px;
+    width: auto;
+    max-height: min(52vh, 480px);
+  }
+  body.is-mobile[data-mode="math"] #timebar,
+  body.is-mobile[data-mode="earth"] #timebar,
+  body.is-mobile[data-mode="light"] #timebar,
+  body.is-mobile[data-mode="gravity"] #timebar,
+  body.is-mobile[data-mode="photo"] #timebar {
+    display: none !important;
+  }
+  body.is-mobile[data-mode="math"] #math-timebar {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: none;
+    transform: none;
   }
 
   .body-label { font-size: 10.5px; }

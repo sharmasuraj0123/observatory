@@ -111,13 +111,13 @@ export class UI {
   }
 
   setupMobile() {
-    const apply = () => {
+    const apply = ({ forceHome = false } = {}) => {
       document.body.classList.toggle('is-mobile', this.isMobile());
-      if (this.isMobile() && this.h.forceSolar) this.h.forceSolar();
+      if (forceHome && this.isMobile() && this.h.forceSolar) this.h.forceSolar();
       if (!this.isMobile() && this.el.mobileBodies) this.el.mobileBodies.classList.add('hidden');
     };
-    apply();
-    this.mobileMq.addEventListener('change', apply);
+    apply({ forceHome: false });
+    this.mobileMq.addEventListener('change', () => apply({ forceHome: true }));
   }
 
   // ---------------- body navigator ----------------

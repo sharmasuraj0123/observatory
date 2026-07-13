@@ -61,9 +61,19 @@ npm run build     # production build to dist/
 npm run preview   # serve the production build
 ```
 
-Open the app, then switch instruments with the tabs in the top-left. Press **H** at any
+Open the app, then switch instruments with the tabs in the top-left (or open a
+section URL directly). Press **H** at any
 time for a context-aware help card, **S** for a PNG snapshot, and **V** to record up to
 10 seconds of the current view as a WebM.
+
+| Section | URL |
+| --- | --- |
+| Solar System | `/` |
+| Equation Lab | `/equation` |
+| Earth Lab | `/earth` |
+| Light Lab | `/light` |
+| Gravity Lab | `/gravity` |
+| Photo Lab | `/photo` |
 
 ---
 
@@ -295,7 +305,9 @@ single render loop; each tab hides the others and runs its own update.
 
 ```
 src/
-  main.js            Orchestrator: tabs, render loop, picking, snapshots, physics-lab glue
+  main.js            Orchestrator: tabs, routes, render loop, picking, snapshots, physics-lab glue
+  nav/
+    routes.js          Path ↔ instrument map, history sync, popstate
   capture/
     recorder.js        Composite MediaRecorder, 10s cap, WebM/MP4 + data exports
     overlay.js         XO logo + live equation/lab HUD painter

@@ -26,6 +26,7 @@ import { createRecorder, RECORD_MAX_MS } from './capture/recorder.js';
 import { TraceResultsPanel } from './ui/traceResults.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
 import { PLANETS, DWARFS, SUN, COMET_HALLEY } from './data/bodies.js';
+import { modeFromLocation, syncUrl, bindPopState, pathForMode } from './nav/routes.js';
 
 const FILES = {
   sun: '2k_sun.jpg',
@@ -413,11 +414,19 @@ async function init() {
     photosynthesis: { pos: new THREE.Vector3(8, 22, 48), target: new THREE.Vector3(0, 2, 0) },
   };
 
-  function setMode(mode) {
-    if (mode === tabState.mode) return;
+  function setMode(mode, { fromUrl = false } = {}) {
+    if (!mode || !['solar', 'math', 'earth', 'light', 'gravity', 'photo'].includes(mode)) {
+      mode = 'solar';
+    }
+    if (mode === tabState.mode) {
+      if (!fromUrl) syncUrl(mode, { replace: true });
+      document.body.dataset.mode = mode;
+      return;
+    }
     tabState.cams[tabState.mode] = { pos: camera.position.clone(), target: controls.target.clone() };
     const prev = tabState.mode;
     tabState.mode = mode;
+    document.body.dataset.mode = mode;
     const isMath = mode === 'math';
     const isEarth = mode === 'earth';
     const isLight = mode === 'light';
@@ -467,7 +476,7 @@ async function init() {
     document.getElementById('settings-panel').classList.add('hidden');
     document.getElementById('lab-panel').classList.add('hidden');
     renderer.domElement.style.cursor = 'default';
-    if (!isSolar) ui.closeInfo();
+    if (!isSolar && ui) ui.closeInfo();
     document.getElementById('tab-solar').classList.toggle('active', isSolar);
     document.getElementById('tab-math').classList.toggle('active', isMath);
     document.getElementById('tab-earth').classList.toggle('active', isEarth);
@@ -502,14 +511,30 @@ async function init() {
     focusCtl.baseMinDistance = isSolar ? 0.2 : isMath ? 0.6 : 1.5;
     controls.minDistance = focusCtl.baseMinDistance;
     controls.maxDistance = isSolar ? 250000 : 3000;
+
+    if (!fromUrl) syncUrl(mode);
+    else syncUrl(mode, { replace: true });
   }
 
-  document.getElementById('tab-solar').addEventListener('click', () => setMode('solar'));
-  document.getElementById('tab-math').addEventListener('click', () => setMode('math'));
-  document.getElementById('tab-earth').addEventListener('click', () => setMode('earth'));
-  document.getElementById('tab-light').addEventListener('click', () => setMode('light'));
-  document.getElementById('tab-gravity').addEventListener('click', () => setMode('gravity'));
-  document.getElementById('tab-photo').addEventListener('click', () => setMode('photo'));
+  function bindTab(id, mode) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Real links so open-in-new-tab / copy URL work; click still does SPA navigation
+    if (el.tagName === 'A') el.setAttribute('href', pathForMode(mode));
+    el.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      setMode(mode);
+    });
+  }
+  bindTab('tab-solar', 'solar');
+  bindTab('tab-math', 'math');
+  bindTab('tab-earth', 'earth');
+  bindTab('tab-light', 'light');
+  bindTab('tab-gravity', 'gravity');
+  bindTab('tab-photo', 'photo');
+
+  bindPopState((mode) => setMode(mode, { fromUrl: true }));
 
   // Shared filename stem for PNG / WebM captures (HUD is DOM and stays out of frame).
   function captureTag() {
@@ -1047,6 +1072,10 @@ async function init() {
   const loading = document.getElementById('loading');
   loading.classList.add('done');
   setTimeout(() => loading.remove(), 900);
+
+  // Open the instrument named by the URL (/, /equation, /earth, ...)
+  const bootMode = modeFromLocation();
+  setMode(bootMode, { fromUrl: true });
 
   // debugging handle for automated checks
   window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, recorder };
