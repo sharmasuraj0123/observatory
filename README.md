@@ -144,12 +144,13 @@ pipeline (bloom, trails, free camera, live readouts). The trail is the time axis
   atmosphere layers, the geodynamo magnetic field (drawn as tilted dipole field lines),
   and the gravity profile inside the planet (it peaks at the core-mantle boundary).
 - **A real-time Single Point Mooring (SPM) simulation:** floating buoy, six chains at
-  60°, each from a surface stopper to a seabed pile. Defaults: buoy dia 12 m, sea depth
-  30 m, stopper-pile 300 m, chain length 315 m, chain weight 250 kg/m. Required live
-  outputs: **(1) touchdown point**, **(2) catenary angle**, **(3) tension on the chain
-  locked at the stopper**. Wind and sea forces push the buoy; every input is variable.
-  Quasi-static catenary each frame (grounded / suspended / taut). Submerged chain weight
-  is 0.87× the in-air weight.
+  60°, each from a surface stopper to a seabed pile. Defaults: buoy dia 12 m, buoy
+  weight 180 t, sea depth 30 m, stopper-pile 300 m, chain length 315 m, chain weight
+  250 kg/m. Required live outputs: **(1) touchdown point**, **(2) catenary angle at
+  stopper**, **(3) catenary angle at touchdown**, **(4) tension on the chain locked at
+  the stopper**. Buoy weight sets floating draft. Wind and sea forces push the buoy;
+  every input is variable. Quasi-static catenary each frame (grounded / suspended /
+  taut). Submerged chain weight is 0.87× the in-air weight.
 
 ### 4. Light Lab
 

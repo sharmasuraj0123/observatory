@@ -25,10 +25,13 @@ export function solveCatenary(h, X, L, w) {
   if (L <= chord) {
     // chain physically cannot go taut-straight without stretch: report taut
     const angle = Math.atan2(h, X);
+    const angleDeg = angle * 180 / Math.PI;
     return {
       mode: 'taut', a: null,
       H: Infinity, V: Infinity, T: Infinity,
-      angleDeg: angle * 180 / Math.PI,
+      angleDeg,
+      // No grounded lift-off: report pile-end angle (same as chord for taut)
+      touchdownAngleDeg: angleDeg,
       suspended: L, grounded: 0,
       touchdownFromPile: 0, touchdownFromStopper: X,
     };
@@ -54,6 +57,8 @@ export function solveCatenary(h, X, L, w) {
         mode: 'grounded', a,
         H, V, T: Math.hypot(H, V),
         angleDeg: Math.atan2(V, H) * 180 / Math.PI,
+        // Ideal catenary leaves the seabed horizontally at the touchdown
+        touchdownAngleDeg: 0,
         suspended: s, grounded: L - s,
         touchdownFromPile: L - s,
         touchdownFromStopper: xs,
@@ -78,14 +83,17 @@ export function solveCatenary(h, X, L, w) {
   const x1 = x2 - X;        // pile side
   const H = w * a;
   const V = w * a * Math.sinh(x2 / a);
+  const anchorAngleDeg = Math.atan(Math.sinh(x1 / a)) * 180 / Math.PI;
   return {
     mode: 'suspended', a,
     H, V, T: Math.hypot(H, V),
     angleDeg: Math.atan2(V, H) * 180 / Math.PI,
+    // No seabed rest: report angle at the pile (seabed connection)
+    touchdownAngleDeg: Math.abs(anchorAngleDeg),
     suspended: L, grounded: 0,
     touchdownFromPile: 0, touchdownFromStopper: X,
     x1, x2,
-    anchorAngleDeg: Math.atan(Math.sinh(x1 / a)) * 180 / Math.PI,
+    anchorAngleDeg,
   };
 }
 
@@ -137,7 +145,7 @@ function waveNumber(omega, depth) {
 export class MooringSim {
   constructor() {
     this.params = {
-      buoyD: 12, buoyH: 6, depth: 30,
+      buoyD: 12, buoyH: 6, buoyMass: 180000, depth: 30,
       pileDist: 300, chainLen: 315, chainW: 250, mbl: 5000,
       windU: 12, windDir: 0, curU: 0.8, curDir: 30, hs: 2, tp: 9,
     };
@@ -209,7 +217,10 @@ export class MooringSim {
 
   envForce() {
     const p = this.params;
-    const draft = Math.min(p.buoyH * 0.55, p.buoyH - 0.5);
+    // Floating draft from buoy weight vs waterplane buoyancy (clamped to hull)
+    const area = Math.PI * (p.buoyD / 2) ** 2;
+    const draftIdeal = p.buoyMass / (RHO_WATER * Math.max(area, 1e-6));
+    const draft = Math.min(Math.max(draftIdeal, 0.4), p.buoyH - 0.4);
     const freeboard = p.buoyH - draft;
     const wd = p.windDir * Math.PI / 180;
     const cd = p.curDir * Math.PI / 180;
@@ -253,9 +264,9 @@ export class MooringSim {
     const sub = Math.max(1, Math.ceil(dt / 0.05));
     const hdt = dt / sub;
     const env = this.envForce();
-    // effective mass: displacement + added mass for a surface-piercing cylinder
+    // Structural mass + hydrodynamic added mass (~1× displaced water)
     const disp = RHO_WATER * Math.PI * (p.buoyD / 2) ** 2 * env.draft;
-    const mEff = disp * 1.8 + 5e4;
+    const mEff = Math.max(p.buoyMass, 1e3) + disp;
     const damp = 0.35 * Math.sqrt(mEff * 2e3) + 2e4; // broad, stable damping
 
     for (let s = 0; s < sub; s++) {
