@@ -8,6 +8,7 @@ export const ROUTES = [
   { mode: 'light', path: '/light', title: 'Observatory · Light Lab', aliases: ['/optics'] },
   { mode: 'gravity', path: '/gravity', title: 'Observatory · Gravity Lab', aliases: [] },
   { mode: 'photo', path: '/photo', title: 'Observatory · Photo Lab', aliases: ['/photosynthesis', '/photoelectric'] },
+  { mode: 'fractal', path: '/fractals', title: 'Observatory · Fractals Lab', aliases: ['/fractal'] },
 ];
 
 const byMode = Object.fromEntries(ROUTES.map((r) => [r.mode, r]));

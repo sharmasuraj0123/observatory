@@ -47,6 +47,7 @@ Three **instruments** share one engine (renderer, camera, trails, HUD):
 | **Light Lab** | Geometric optics | Where does each ray go, and what does Snell / Fresnel / dispersion do to it? |
 | **Gravity Lab** | Orbital mechanics + QG toys | What orbit is this particle on, and what if gravity were quantum-corrected? |
 | **Photo Lab** | Photons and biology | When does light eject electrons, and which colors drive photosynthesis? |
+| **Fractals Lab** | Complex dynamics + IFS | How does z ← zⁿ + c paint the plane, and what does a 3D bulb look like? |
 
 ---
 
@@ -74,10 +75,11 @@ time for a context-aware help card, **S** for a PNG snapshot, and **V** to recor
 | Light Lab | `/light` |
 | Gravity Lab | `/gravity` |
 | Photo Lab | `/photo` |
+| Fractals Lab | `/fractals` |
 
 ---
 
-## The six instruments
+## The seven instruments
 
 ### 1. Solar System
 
@@ -216,6 +218,22 @@ photosynthesis.
   rate drops. Action-spectrum canvas shows absorbance vs photosynthetic rate; O₂ bubbles
   mark productive absorption events.
 
+### 7. Fractals Lab
+
+A GPU-first fractal instrument with three families on one stage:
+
+- **Escape time:** Mandelbrot, Julia, Burning Ship, and Newton (z^3 - 1) on a shader plane.
+  Smooth continuous potential coloring, orbit traps (circle / line), live palettes, pan /
+  zoom (scroll and double-click), and a complex probe that reports iteration, smooth μ,
+  and |z|.
+- **Raymarch 3D:** Mandelbulb (power 8) and quaternion Julia with distance estimation,
+  soft AO, Fresnel rims, and drag-to-orbit / scroll-to-dolly.
+- **IFS attractors:** Barnsley fern, Sierpiński gasket, dragon curve, maple leaf as
+  additive point clouds with theoretical Hausdorff dimension readout.
+
+Curated destinations (seahorse valley, mini-set, Douady rabbit, …) ship as one-click
+presets; every parameter stays live.
+
 ---
 
 ## Traces and information
@@ -346,6 +364,7 @@ src/
     presets.js         Classical + quantum-gravity presets
     gravitylab.js      Potential well, tracers, trails, picking
   photo/               Photo Lab
+  fractal/             Fractals Lab
     photoPhysics.js    Einstein PE, work functions, pigment absorbance, action spectrum
     photolab.js        Cathode tube + chloroplast scenes, photon/electron/O2 particles
   camera/

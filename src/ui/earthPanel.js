@@ -124,22 +124,27 @@ export class EarthPanel {
         <div class="section-title">Required outputs (live)</div>
         <div class="spm-out-cards" id="spm-out-cards">
           <div class="spm-out-card">
-            <div class="spm-out-k">1. Touchdown point</div>
+            <div class="spm-out-k">1. Touchdown from pile</div>
             <div class="spm-out-v" id="spm-out-td">…</div>
             <div class="spm-out-note">Grounded length from pile to lift-off (m)</div>
           </div>
           <div class="spm-out-card">
-            <div class="spm-out-k">2. Catenary angle at stopper</div>
+            <div class="spm-out-k">2. Touchdown from SPM centre</div>
+            <div class="spm-out-v" id="spm-out-td-center">…</div>
+            <div class="spm-out-note">Horizontal range from buoy centre to seabed lift-off (m)</div>
+          </div>
+          <div class="spm-out-card">
+            <div class="spm-out-k">3. Catenary angle at stopper</div>
             <div class="spm-out-v" id="spm-out-ang">…</div>
             <div class="spm-out-note">Angle at the SPM stopper from horizontal (°)</div>
           </div>
           <div class="spm-out-card">
-            <div class="spm-out-k">3. Catenary angle at touchdown</div>
+            <div class="spm-out-k">4. Catenary angle at touchdown</div>
             <div class="spm-out-v" id="spm-out-td-ang">…</div>
             <div class="spm-out-note">Angle at seabed touchpoint from horizontal (°). 0° when grounded (leaves seabed flat); pile angle when fully suspended</div>
           </div>
           <div class="spm-out-card">
-            <div class="spm-out-k">4. Stopper tension</div>
+            <div class="spm-out-k">5. Stopper tension</div>
             <div class="spm-out-v" id="spm-out-T">…</div>
             <div class="spm-out-note">Tension on chain locked at the stopper</div>
           </div>
@@ -152,7 +157,8 @@ export class EarthPanel {
           <thead>
             <tr>
               <th>Chain</th>
-              <th>Touchdown</th>
+              <th>TD pile</th>
+              <th>TD centre</th>
               <th>∠ stopper</th>
               <th>∠ touchdown</th>
               <th>Stopper T</th>
@@ -161,11 +167,11 @@ export class EarthPanel {
           </thead>
           <tbody></tbody>
         </table>
-        <p class="lab-note">Touchdown = grounded length measured from the pile.
-        Stopper angle and tension are at the surface SPM. Touchdown angle is at the
-        seabed lift-off (0° when grounded). Buoy weight sets floating draft.
-        Physics uses submerged chain weight (× 0.87 of air weight). <b>TAUT</b> means the
-        span exceeds what the chain length allows: lengthen the chain or reduce weather loads.</p>
+        <p class="lab-note">TD pile = grounded length from the pile. TD centre = horizontal
+        range from the SPM buoy centre to the lift-off. Stopper angle and tension are at the
+        surface. Touchdown angle is at the seabed lift-off (0° when grounded). Buoy weight
+        sets floating draft. Physics uses submerged chain weight (× 0.87 of air weight).
+        <b>TAUT</b> means the span exceeds what the chain length allows.</p>
       </div>`;
 
     // sub-mode switch
@@ -288,6 +294,8 @@ export class EarthPanel {
     let maxAngI = 0;
     let maxTd = 0;
     let maxTdI = 0;
+    let maxTdCenter = 0;
+    let maxTdCenterI = 0;
     let maxTdAng = -1;
     let maxTdAngI = 0;
 
@@ -297,9 +305,14 @@ export class EarthPanel {
       const taut = !Number.isFinite(s.T);
       const T = taut ? Infinity : s.T;
       const tdAng = Number.isFinite(s.touchdownAngleDeg) ? s.touchdownAngleDeg : 0;
+      const tdCenter = Number.isFinite(c.touchdownFromCenter) ? c.touchdownFromCenter : NaN;
       if (T >= maxT) { maxT = T; maxTi = i; }
       if (s.angleDeg >= maxAng) { maxAng = s.angleDeg; maxAngI = i; }
       if (s.touchdownFromPile >= maxTd) { maxTd = s.touchdownFromPile; maxTdI = i; }
+      if (Number.isFinite(tdCenter) && tdCenter >= maxTdCenter) {
+        maxTdCenter = tdCenter;
+        maxTdCenterI = i;
+      }
       if (tdAng >= maxTdAng) { maxTdAng = tdAng; maxTdAngI = i; }
       const util = taut ? 2 : s.T / mblN;
       const cls = taut || util > 0.6 ? 'spm-hot' : util > 0.3 ? 'spm-warm' : '';
@@ -307,6 +320,7 @@ export class EarthPanel {
       return `<tr class="${cls}">
         <td>${i + 1} · ${(c.pile.ang * 180 / Math.PI).toFixed(0)}°</td>
         <td>${s.touchdownFromPile.toFixed(1)} m</td>
+        <td>${Number.isFinite(tdCenter) ? tdCenter.toFixed(1) + ' m' : 'n/a'}</td>
         <td>${s.angleDeg.toFixed(1)}°</td>
         <td>${tdAng.toFixed(1)}°</td>
         <td>${taut ? 'TAUT' : (s.T / 9806.65).toFixed(1) + ' t'}</td>
@@ -317,11 +331,17 @@ export class EarthPanel {
     // Headline required outputs: report the governing (worst) chain for each
     const worst = chains[maxTi]?.sol;
     const tdEl = document.getElementById('spm-out-td');
+    const tdCenterEl = document.getElementById('spm-out-td-center');
     const angEl = document.getElementById('spm-out-ang');
     const tdAngEl = document.getElementById('spm-out-td-ang');
     const tEl = document.getElementById('spm-out-T');
     if (tdEl) {
       tdEl.innerHTML = `<b>${maxTd.toFixed(1)} m</b> <span class="spm-out-chain">chain ${maxTdI + 1}</span>`;
+    }
+    if (tdCenterEl) {
+      tdCenterEl.innerHTML = maxTdCenter > 0
+        ? `<b>${maxTdCenter.toFixed(1)} m</b> <span class="spm-out-chain">chain ${maxTdCenterI + 1}</span>`
+        : `<b>n/a</b> <span class="spm-out-sub">no seabed lift-off</span>`;
     }
     if (angEl) {
       angEl.innerHTML = `<b>${maxAng.toFixed(1)}°</b> <span class="spm-out-chain">chain ${maxAngI + 1}</span>`;

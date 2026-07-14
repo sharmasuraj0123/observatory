@@ -22,6 +22,8 @@ import { GravityLab } from './gravity/gravitylab.js';
 import { GravityPanel } from './ui/gravityPanel.js';
 import { PhotoLab } from './photo/photolab.js';
 import { PhotoPanel } from './ui/photoPanel.js';
+import { FractalLab } from './fractal/fractallab.js';
+import { FractalPanel } from './ui/fractalPanel.js';
 import { createRecorder, RECORD_MAX_MS } from './capture/recorder.js';
 import { TraceResultsPanel } from './ui/traceResults.js';
 import { proceduralTexture, uranusRingTexture } from './textures/procedural.js';
@@ -397,9 +399,10 @@ async function init() {
   const lightlab = new LightLab(scene);
   const gravitylab = new GravityLab(scene, getTexture);
   const photolab = new PhotoLab(scene);
+  const fractallab = new FractalLab(scene);
   const tabState = {
     mode: 'solar',
-    cams: { solar: null, math: null, earth: null, light: null, gravity: null, photo: null },
+    cams: { solar: null, math: null, earth: null, light: null, gravity: null, photo: null, fractal: null },
   };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
@@ -413,9 +416,11 @@ async function init() {
     photoelectric: { pos: new THREE.Vector3(0, 28, 55), target: new THREE.Vector3(0, 6, 0) },
     photosynthesis: { pos: new THREE.Vector3(8, 22, 48), target: new THREE.Vector3(0, 2, 0) },
   };
+  const FRACTAL_HOME = { pos: new THREE.Vector3(0, 4, 42), target: new THREE.Vector3(0, 0, 0) };
+  const FRACTAL_IFS_HOME = { pos: new THREE.Vector3(0, 0, 32), target: new THREE.Vector3(0, 0, 0) };
 
   function setMode(mode, { fromUrl = false } = {}) {
-    if (!mode || !['solar', 'math', 'earth', 'light', 'gravity', 'photo'].includes(mode)) {
+    if (!mode || !['solar', 'math', 'earth', 'light', 'gravity', 'photo', 'fractal'].includes(mode)) {
       mode = 'solar';
     }
     if (mode === tabState.mode) {
@@ -432,6 +437,7 @@ async function init() {
     const isLight = mode === 'light';
     const isGravity = mode === 'gravity';
     const isPhoto = mode === 'photo';
+    const isFractal = mode === 'fractal';
     const isSolar = mode === 'solar';
 
     focusCtl.release();
@@ -442,6 +448,16 @@ async function init() {
     lightlab.group.visible = isLight;
     gravitylab.group.visible = isGravity;
     photolab.group.visible = isPhoto;
+    fractallab.group.visible = isFractal;
+
+    // Fractals need a clean plate: bloom muddies fine filaments
+    if (typeof fractallab._prevBloom === 'undefined') fractallab._prevBloom = true;
+    if (isFractal) {
+      fractallab._prevBloom = stage.bloom.enabled;
+      stage.bloom.enabled = false;
+    } else if (prev === 'fractal') {
+      stage.bloom.enabled = fractallab._prevBloom;
+    }
 
     // the N-body experiment does not integrate while other tabs are open but
     // solar time keeps flowing; catch it up (or re-seed after a long gap)
@@ -471,6 +487,7 @@ async function init() {
     document.getElementById('light-panel').classList.toggle('hidden', !isLight);
     document.getElementById('gravity-panel').classList.toggle('hidden', !isGravity);
     document.getElementById('photo-panel').classList.toggle('hidden', !isPhoto);
+    document.getElementById('fractal-panel').classList.toggle('hidden', !isFractal);
     document.getElementById('btn-lab').classList.toggle('hidden', !isSolar);
     document.getElementById('btn-settings').classList.toggle('hidden', !isSolar);
     document.getElementById('settings-panel').classList.add('hidden');
@@ -483,6 +500,7 @@ async function init() {
     document.getElementById('tab-light').classList.toggle('active', isLight);
     document.getElementById('tab-gravity').classList.toggle('active', isGravity);
     document.getElementById('tab-photo').classList.toggle('active', isPhoto);
+    document.getElementById('tab-fractal').classList.toggle('active', isFractal);
 
     const restore = tabState.cams[mode];
     if (restore) {
@@ -507,7 +525,13 @@ async function init() {
       const home = PHOTO_HOMES[photolab.submode] || PHOTO_HOMES.photoelectric;
       camera.position.copy(home.pos);
       controls.target.copy(home.target);
+    } else if (isFractal) {
+      const home = fractallab.family === 'ifs' ? FRACTAL_IFS_HOME : FRACTAL_HOME;
+      camera.position.copy(home.pos);
+      controls.target.copy(home.target);
     }
+    // Escape/ray fractals own pan-zoom; keep orbit subtle for IFS framing
+    controls.enabled = !(isFractal && (fractallab.family === 'escape' || fractallab.family === 'ray'));
     focusCtl.baseMinDistance = isSolar ? 0.2 : isMath ? 0.6 : 1.5;
     controls.minDistance = focusCtl.baseMinDistance;
     controls.maxDistance = isSolar ? 250000 : 3000;
@@ -533,6 +557,7 @@ async function init() {
   bindTab('tab-light', 'light');
   bindTab('tab-gravity', 'gravity');
   bindTab('tab-photo', 'photo');
+  bindTab('tab-fractal', 'fractal');
 
   bindPopState((mode) => setMode(mode, { fromUrl: true }));
 
@@ -548,6 +573,8 @@ async function init() {
             ? `gravity-${(gravitylab.preset && gravitylab.preset.id) || 'orbit'}-t${Math.round(gravitylab.sim.t)}`
             : tabState.mode === 'photo'
               ? `photo-${photolab.submode}-t${Math.round(photolab.t)}`
+              : tabState.mode === 'fractal'
+                ? `fractal-${(fractallab.preset && fractallab.preset.id) || 'set'}-s${Number(fractallab.params.scale || 0).toExponential(1)}`
               : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
   }
 
@@ -699,6 +726,27 @@ async function init() {
     },
   });
 
+  const fractalPanel = new FractalPanel(fractallab, {
+    frameView: () => {
+      if (tabState.mode !== 'fractal') return;
+      controls.enabled = fractallab.family === 'ifs';
+      const home = fractallab.family === 'ifs' ? FRACTAL_IFS_HOME : FRACTAL_HOME;
+      focusCtl.overview(home.pos, home.target);
+    },
+  });
+
+  // Keep orbit controls in sync when switching fractal families from the panel
+  const _loadPreset = fractallab.loadPreset.bind(fractallab);
+  fractallab.loadPreset = (id) => {
+    _loadPreset(id);
+    if (tabState.mode === 'fractal') {
+      controls.enabled = fractallab.family === 'ifs';
+      if (fractallab.family === 'ifs') {
+        focusCtl.overview(FRACTAL_IFS_HOME.pos, FRACTAL_IFS_HOME.target);
+      }
+    }
+  };
+
   // a diverged particle 0 respawns across the scene; re-anchor the follow
   // camera after its worldPos is refreshed so it does not teleport violently
   mathlab.onP0Respawn = () => {
@@ -807,6 +855,15 @@ async function init() {
         focusCtl.overview(home.pos, home.target);
       }
     },
+    isFractal: () => tabState.mode === 'fractal',
+    fractalStatus: () => fractallab.status(),
+    fractalEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else {
+        const home = fractallab.family === 'ifs' ? FRACTAL_IFS_HOME : FRACTAL_HOME;
+        focusCtl.overview(home.pos, home.target);
+      }
+    },
   });
 
   const labPanel = new LabPanel({
@@ -838,6 +895,7 @@ async function init() {
   let downAt = null;
 
   const layerRaycaster = new THREE.Raycaster(); // default layer 0: earth cutaway meshes
+  const fractalDrag = { on: false, x: 0, y: 0, moved: false };
 
   renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
   renderer.domElement.addEventListener('pointerup', (e) => {
@@ -879,6 +937,13 @@ async function init() {
       }
       return;
     }
+    if (tabState.mode === 'fractal' && fractallab.family === 'escape' && !fractalDrag.moved) {
+      const { re, im } = fractallab.screenToComplex(e.clientX, e.clientY, innerWidth, innerHeight);
+      fractallab.setProbe(re, im);
+      fractalPanel.renderProbe();
+      fractalPanel.renderLive();
+      return;
+    }
     if (tabState.mode !== 'solar') return;
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObjects(pickables, false);
@@ -903,10 +968,72 @@ async function init() {
         layerRaycaster.intersectObjects(gravitylab.pickables, false).length ? 'pointer' : 'default';
       return;
     }
+    if (tabState.mode === 'fractal') {
+      renderer.domElement.style.cursor =
+        fractallab.family === 'escape' || fractallab.family === 'ray' ? 'crosshair' : 'default';
+      return;
+    }
     if (tabState.mode !== 'solar') return;
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     renderer.domElement.style.cursor = raycaster.intersectObjects(pickables, false).length ? 'pointer' : 'default';
+  });
+
+  // Fractals Lab: screen-space pan / zoom / orbit
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    if (tabState.mode !== 'fractal') return;
+    if (fractallab.family !== 'escape' && fractallab.family !== 'ray') return;
+    fractalDrag.on = true;
+    fractalDrag.moved = false;
+    fractalDrag.x = e.clientX;
+    fractalDrag.y = e.clientY;
+    renderer.domElement.setPointerCapture?.(e.pointerId);
+  });
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    if (!fractalDrag.on || tabState.mode !== 'fractal') return;
+    const dx = e.clientX - fractalDrag.x;
+    const dy = e.clientY - fractalDrag.y;
+    if (dx * dx + dy * dy > 9) fractalDrag.moved = true;
+    fractalDrag.x = e.clientX;
+    fractalDrag.y = e.clientY;
+    if (fractallab.family === 'escape') {
+      const scale = fractallab.params.scale ?? 1.25;
+      const aspect = innerWidth / Math.max(innerHeight, 1);
+      const dRe = -(dx / innerHeight) * scale * 2 * aspect;
+      const dIm = (dy / innerHeight) * scale * 2;
+      fractallab.pan(dRe, dIm);
+      fractalPanel.renderLive();
+    } else if (fractallab.family === 'ray') {
+      fractallab.orbitRay(-dy * 0.005, -dx * 0.005);
+      fractalPanel.renderLive();
+    }
+  });
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    if (!fractalDrag.on) return;
+    fractalDrag.on = false;
+    try { renderer.domElement.releasePointerCapture?.(e.pointerId); } catch (_) { /* ignore */ }
+  });
+  renderer.domElement.addEventListener('wheel', (e) => {
+    if (tabState.mode !== 'fractal') return;
+    if (fractallab.family !== 'escape' && fractallab.family !== 'ray') return;
+    e.preventDefault();
+    const factor = Math.exp(e.deltaY * 0.0012);
+    if (fractallab.family === 'ray') {
+      fractallab.dollyRay(factor);
+      fractalPanel.renderLive();
+      return;
+    }
+    const { re, im } = fractallab.screenToComplex(e.clientX, e.clientY, innerWidth, innerHeight);
+    fractallab.zoomAt(factor, re, im, false);
+    fractalPanel.renderLive();
+  }, { passive: false });
+  renderer.domElement.addEventListener('dblclick', (e) => {
+    if (tabState.mode !== 'fractal' || fractallab.family !== 'escape') return;
+    const { re, im } = fractallab.screenToComplex(e.clientX, e.clientY, innerWidth, innerHeight);
+    fractallab.zoomAt(0.45, re, im, true);
+    fractallab.setProbe(re, im);
+    fractalPanel.renderProbe();
+    fractalPanel.renderLive();
   });
 
   // ---------------- main loop ----------------
@@ -979,6 +1106,21 @@ async function init() {
     if (tabState.mode === 'photo') {
       photolab.update(dt);
       photoPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      recorder.tick();
+      return;
+    }
+
+    // Fractals Lab tab: immersive fullscreen explorer
+    if (tabState.mode === 'fractal') {
+      fractallab.setResolution(renderer.domElement.width, renderer.domElement.height);
+      fractallab.setIFSPixelScale(renderer.getPixelRatio());
+      fractallab.update(dt);
+      fractalPanel.tick(dt);
       focusCtl.update(dt);
       controls.update();
       ui.tick(dt);
@@ -1078,7 +1220,7 @@ async function init() {
   setMode(bootMode, { fromUrl: true });
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, recorder };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, fractallab, fractalPanel, recorder };
 }
 
 init();

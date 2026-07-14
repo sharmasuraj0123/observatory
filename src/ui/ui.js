@@ -574,6 +574,7 @@ export class UI {
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
     const photo = this.h.isPhoto && this.h.isPhoto();
+    const fractal = this.h.isFractal && this.h.isFractal();
     const solarGrid = `
       <span>Click body / label</span><span>select and fly to it</span>
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -585,7 +586,7 @@ export class UI {
       <span>E</span><span>physics lab (N-body experiments)</span>
       <span>S</span><span>snapshot PNG</span>
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
-      <span>Tabs</span><span>Equation / Earth / Light / Gravity / Photo labs</span>
+      <span>Tabs</span><span>Equation / Earth / Light / Gravity / Photo / Fractals labs</span>
       <span>H</span><span>this help</span>`;
     const mathGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -638,6 +639,18 @@ export class UI {
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
       <span>Esc</span><span>reframe the bench</span>
       <span>H</span><span>this help</span>`;
+    const fractalGrid = `
+      <span>Drag</span><span>pan the complex plane / orbit 3D</span>
+      <span>Scroll</span><span>zoom (escape) or dolly (3D)</span>
+      <span>Click</span><span>probe a complex point</span>
+      <span>Double-click</span><span>zoom ×0.5 at cursor</span>
+      <span>Escape family</span><span>Mandelbrot, Julia, Burning Ship, Newton</span>
+      <span>3D Ray</span><span>Mandelbulb + quaternion Julia DE</span>
+      <span>IFS</span><span>Barnsley fern, Sierpiński, dragon, maple</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video (max 10s, XO HUD)</span>
+      <span>Esc</span><span>reframe the stage</span>
+      <span>H</span><span>this help</span>`;
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
       : earth
@@ -648,6 +661,8 @@ export class UI {
             ? 'Gravity Lab: leapfrog N-body with massless tracers, plus pedagogical quantum-gravity toys (LQG bounce, running G, massive graviton, spacetime foam, Hawking evaporation, Schrödinger-Newton).'
             : photo
               ? 'Photo Lab: Einstein photoelectric effect (hf − φ, stopping potential, photocurrent) and light-dependent photosynthesis (pigment absorbance, quantum yield, action spectrum).'
+              : fractal
+                ? 'Fractals Lab: GPU escape-time planes with smooth coloring and orbit traps, distance-estimated Mandelbulb / quaternion Julia, and IFS particle attractors with live complex probing.'
               : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
@@ -659,9 +674,11 @@ export class UI {
             ? 'Try it: open Quantum bounce and watch free-fall reverse at ℓ_b, then switch to Hawking evaporation and raise κ until outer orbits unbind.'
             : photo
               ? 'Try it: on Sodium, drop λ below ~525 nm until electrons fly, then raise retarding V past Vs to kill the current. Switch to Photosynthesis and slide λ through the green trough.'
+              : fractal
+                ? 'Try it: open Mandelbrot · seahorse, scroll deep into a filament, then click to probe. Switch to Mandelbulb and drag to orbit the power-8 surface.'
               : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
-    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : photo ? 'Photo Lab' : 'Observatory';
-    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : photo ? photoGrid : solarGrid;
+    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : photo ? 'Photo Lab' : fractal ? 'Fractals Lab' : 'Observatory';
+    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : photo ? photoGrid : fractal ? fractalGrid : solarGrid;
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
@@ -749,6 +766,18 @@ export class UI {
         }
         return;
       }
+      if (this.h.isFractal && this.h.isFractal()) {
+        switch (e.key) {
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.fractalEscape) this.h.fractalEscape();
+            break;
+        }
+        return;
+      }
       const clock = this.h.clock;
       switch (e.key) {
         case ' ': e.preventDefault(); this.togglePause(); break;
@@ -789,7 +818,8 @@ export class UI {
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
     const photo = this.h.isPhoto && this.h.isPhoto();
-    if (math || earth || light || gravity || photo) {
+    const fractal = this.h.isFractal && this.h.isFractal();
+    if (math || earth || light || gravity || photo || fractal) {
       this.el.dateText.textContent = math
         ? (this.h.mathStatus ? this.h.mathStatus() : '')
         : earth
@@ -798,12 +828,16 @@ export class UI {
             ? (this.h.lightStatus ? this.h.lightStatus() : '')
             : gravity
               ? (this.h.gravityStatus ? this.h.gravityStatus() : '')
-              : (this.h.photoStatus ? this.h.photoStatus() : '');
+              : photo
+                ? (this.h.photoStatus ? this.h.photoStatus() : '')
+                : (this.h.fractalStatus ? this.h.fractalStatus() : '');
       this.el.liveBadge.classList.remove('on');
+      this.el.liveBadge.style.display = 'none';
       const expBadge = document.getElementById('exp-badge');
       if (expBadge) expBadge.classList.remove('on');
       return;
     }
+    this.el.liveBadge.style.display = '';
     this.el.dateText.textContent = fmtDate(clock.date);
     if (this.isMobile()) {
       const d = clock.date;

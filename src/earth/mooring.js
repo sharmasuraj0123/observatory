@@ -296,7 +296,15 @@ export class MooringSim {
       // Vertical span: still-water depth plus local wave elevation at the stopper
       const h = Math.max(1, p.depth + this.surface(sx, sz, this.t));
       const sol = solveCatenary(h, X, p.chainLen, w);
-      out.push({ sol, X, h, sx, sz, ux, uz, pile });
+      // Horizontal range from SPM centre to the seabed touchdown (lift-off).
+      // TD lies on the pile↔stopper line, touchdownFromPile from the pile.
+      let touchdownFromCenter = NaN;
+      if (sol.mode === 'grounded' && sol.touchdownFromPile > 1e-6) {
+        const tdx = pile.x - ux * sol.touchdownFromPile;
+        const tdz = pile.z - uz * sol.touchdownFromPile;
+        touchdownFromCenter = Math.hypot(tdx - this.buoy.x, tdz - this.buoy.z);
+      }
+      out.push({ sol, X, h, sx, sz, ux, uz, pile, touchdownFromCenter });
     }
     return out;
   }
