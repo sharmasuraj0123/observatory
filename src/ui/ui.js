@@ -570,6 +570,7 @@ export class UI {
       return;
     }
     const math = this.h.isMath && this.h.isMath();
+    const spm = this.h.isSpm && this.h.isSpm();
     const earth = this.h.isEarth && this.h.isEarth();
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
@@ -586,7 +587,7 @@ export class UI {
       <span>E</span><span>physics lab (N-body experiments)</span>
       <span>S</span><span>snapshot PNG</span>
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
-      <span>Tabs</span><span>Equation / Earth / Light / Gravity / Photo / Fractals labs</span>
+      <span>Tabs</span><span>SPM / Solar / Equation / Earth / Light / Gravity / Photo / Fractals</span>
       <span>H</span><span>this help</span>`;
     const mathGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -600,14 +601,22 @@ export class UI {
       <span>Commit</span><span>version-control the lab state, git-style, with thumbnails</span>
       <span>Esc</span><span>release follow, then reframe the view</span>
       <span>H</span><span>this help</span>`;
-    const earthGrid = `
+    const spmGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
-      <span>Click a layer</span><span>inspect core, mantle, crust, fields</span>
-      <span>Space</span><span>pause / resume the mooring simulation</span>
+      <span>Space</span><span>pause / resume coupled simulation</span>
+      <span>Leg buttons</span><span>toggle 1 to 2 chains OFF for maintenance</span>
+      <span>Stand-alone</span><span>static displacement or Find equilibrium</span>
+      <span>Export CSV</span><span>download tensions and F_X, F_Y</span>
       <span>S</span><span>snapshot PNG</span>
       <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
       <span>Esc</span><span>reframe the view</span>
-      <span>Sliders</span><span>every mooring parameter is live</span>
+      <span>H</span><span>this help</span>`;
+    const earthGrid = `
+      <span>Drag / scroll</span><span>orbit and zoom</span>
+      <span>Click a layer</span><span>inspect core, mantle, crust, fields</span>
+      <span>S</span><span>snapshot PNG</span>
+      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>Esc</span><span>reframe the view</span>
       <span>H</span><span>this help</span>`;
     const lightGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
@@ -653,32 +662,36 @@ export class UI {
       <span>H</span><span>this help</span>`;
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
-      : earth
-        ? 'Earth Lab: a true-scale cutaway of the planet (PREM layer radii, dipole field lines) and a live Single Point Mooring simulation solved with quasi-static catenary mechanics.'
-        : light
-          ? 'Light Lab: geometric optics with Cauchy dispersion and Fresnel intensities. Every ray is traced bounce-by-bounce with θi, θt, R/T, optical path length and time of flight.'
-          : gravity
-            ? 'Gravity Lab: leapfrog N-body with massless tracers, plus pedagogical quantum-gravity toys (LQG bounce, running G, massive graviton, spacetime foam, Hawking evaporation, Schrödinger-Newton).'
-            : photo
-              ? 'Photo Lab: Einstein photoelectric effect (hf − φ, stopping potential, photocurrent) and light-dependent photosynthesis (pigment absorbance, quantum yield, action spectrum).'
-              : fractal
-                ? 'Fractals Lab: GPU escape-time planes with smooth coloring and orbit traps, distance-estimated Mandelbulb / quaternion Julia, and IFS particle attractors with live complex probing.'
-              : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
+      : spm
+        ? 'SPM Mooring Module: quasi-static catenary array with stand-alone or coupled analysis, asymmetric chain maintenance (up to 2 legs OFF), and net restoring F_X, F_Y on the buoy centre.'
+        : earth
+          ? 'Earth Lab: a true-scale cutaway of the planet (PREM layer radii, dipole field lines).'
+          : light
+            ? 'Light Lab: geometric optics with Cauchy dispersion and Fresnel intensities. Every ray is traced bounce-by-bounce with θi, θt, R/T, optical path length and time of flight.'
+            : gravity
+              ? 'Gravity Lab: leapfrog N-body with massless tracers, plus pedagogical quantum-gravity toys (LQG bounce, running G, massive graviton, spacetime foam, Hawking evaporation, Schrödinger-Newton).'
+              : photo
+                ? 'Photo Lab: Einstein photoelectric effect (hf − φ, stopping potential, photocurrent) and light-dependent photosynthesis (pigment absorbance, quantum yield, action spectrum).'
+                : fractal
+                  ? 'Fractals Lab: GPU escape-time planes with smooth coloring and orbit traps, distance-estimated Mandelbulb / quaternion Julia, and IFS particle attractors with live complex probing.'
+                  : 'A real-ephemeris solar system. Planet positions are computed from JPL Keplerian elements, so what you see matches the actual sky for any date between 1800 and 2050 (and stays close well beyond).';
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
-      : earth
-        ? 'Try it: in SPM mooring, raise the wind to 30 m/s and watch the upwind chains lift off the seabed, the touchdown points race toward the piles and the tension table go amber.'
-        : light
-          ? 'Try it: open Prism dispersion and raise the wavelength count. Click a violet ray and read its Snell residual, then switch to Total internal reflection and fan past θc.'
-          : gravity
-            ? 'Try it: open Quantum bounce and watch free-fall reverse at ℓ_b, then switch to Hawking evaporation and raise κ until outer orbits unbind.'
-            : photo
-              ? 'Try it: on Sodium, drop λ below ~525 nm until electrons fly, then raise retarding V past Vs to kill the current. Switch to Photosynthesis and slide λ through the green trough.'
-              : fractal
-                ? 'Try it: open Mandelbrot · seahorse, scroll deep into a filament, then click to probe. Switch to Mandelbulb and drag to orbit the power-8 surface.'
-              : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
-    const title = math ? 'Equation Lab' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : photo ? 'Photo Lab' : fractal ? 'Fractals Lab' : 'Observatory';
-    const grid = math ? mathGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : photo ? photoGrid : fractal ? fractalGrid : solarGrid;
+      : spm
+        ? 'Try it: turn Leg 1 and Leg 2 OFF, switch to Stand-alone, press Find equilibrium, and watch F_X / F_Y and the tension table shift onto the remaining four chains.'
+        : earth
+          ? 'Try it: click the outer core, then toggle magnetic field lines to see the dipole tilt relative to the crust.'
+          : light
+            ? 'Try it: open Prism dispersion and raise the wavelength count. Click a violet ray and read its Snell residual, then switch to Total internal reflection and fan past θc.'
+            : gravity
+              ? 'Try it: open Quantum bounce and watch free-fall reverse at ℓ_b, then switch to Hawking evaporation and raise κ until outer orbits unbind.'
+              : photo
+                ? 'Try it: on Sodium, drop λ below ~525 nm until electrons fly, then raise retarding V past Vs to kill the current. Switch to Photosynthesis and slide λ through the green trough.'
+                : fractal
+                  ? 'Try it: open Mandelbrot · seahorse, scroll deep into a filament, then click to probe. Switch to Mandelbulb and drag to orbit the power-8 surface.'
+                  : 'Try it: open the physics lab (E), switch to N-body and press "Halt Earth" to watch it fall into the Sun. Or make Jupiter a star and see the outer system reorganize.';
+    const title = math ? 'Equation Lab' : spm ? 'SPM Mooring' : earth ? 'Earth Lab' : light ? 'Light Lab' : gravity ? 'Gravity Lab' : photo ? 'Photo Lab' : fractal ? 'Fractals Lab' : 'Observatory';
+    const grid = math ? mathGrid : spm ? spmGrid : earth ? earthGrid : light ? lightGrid : gravity ? gravityGrid : photo ? photoGrid : fractal ? fractalGrid : solarGrid;
     this.el.help.innerHTML = `
       <div class="help-card">
         <button class="panel-close" title="Close">×</button>
@@ -715,9 +728,21 @@ export class UI {
         }
         return;
       }
+      if (this.h.isSpm && this.h.isSpm()) {
+        switch (e.key) {
+          case ' ': e.preventDefault(); if (this.h.spmPlayPause) this.h.spmPlayPause(); break;
+          case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
+          case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
+          case 'h': case 'H': case '?': this.toggleHelp(); break;
+          case 'Escape':
+            if (!this.el.help.classList.contains('hidden')) this.toggleHelp();
+            else if (this.h.spmEscape) this.h.spmEscape();
+            break;
+        }
+        return;
+      }
       if (this.h.isEarth && this.h.isEarth()) {
         switch (e.key) {
-          case ' ': e.preventDefault(); if (this.h.earthPlayPause) this.h.earthPlayPause(); break;
           case 's': case 'S': if (this.h.snapshot) this.h.snapshot(); break;
           case 'v': case 'V': if (this.h.toggleRecord) this.h.toggleRecord(); break;
           case 'h': case 'H': case '?': this.toggleHelp(); break;
@@ -814,23 +839,26 @@ export class UI {
     this.tickRecBadge();
     const clock = this.h.clock;
     const math = this.h.isMath && this.h.isMath();
+    const spm = this.h.isSpm && this.h.isSpm();
     const earth = this.h.isEarth && this.h.isEarth();
     const light = this.h.isLight && this.h.isLight();
     const gravity = this.h.isGravity && this.h.isGravity();
     const photo = this.h.isPhoto && this.h.isPhoto();
     const fractal = this.h.isFractal && this.h.isFractal();
-    if (math || earth || light || gravity || photo || fractal) {
+    if (math || spm || earth || light || gravity || photo || fractal) {
       this.el.dateText.textContent = math
         ? (this.h.mathStatus ? this.h.mathStatus() : '')
-        : earth
-          ? (this.h.earthStatus ? this.h.earthStatus() : '')
-          : light
-            ? (this.h.lightStatus ? this.h.lightStatus() : '')
-            : gravity
-              ? (this.h.gravityStatus ? this.h.gravityStatus() : '')
-              : photo
-                ? (this.h.photoStatus ? this.h.photoStatus() : '')
-                : (this.h.fractalStatus ? this.h.fractalStatus() : '');
+        : spm
+          ? (this.h.spmStatus ? this.h.spmStatus() : '')
+          : earth
+            ? (this.h.earthStatus ? this.h.earthStatus() : '')
+            : light
+              ? (this.h.lightStatus ? this.h.lightStatus() : '')
+              : gravity
+                ? (this.h.gravityStatus ? this.h.gravityStatus() : '')
+                : photo
+                  ? (this.h.photoStatus ? this.h.photoStatus() : '')
+                  : (this.h.fractalStatus ? this.h.fractalStatus() : '');
       this.el.liveBadge.classList.remove('on');
       this.el.liveBadge.style.display = 'none';
       const expBadge = document.getElementById('exp-badge');

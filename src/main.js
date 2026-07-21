@@ -16,6 +16,8 @@ import { MathLab } from './math/mathlab.js';
 import { EquationPanel } from './ui/equationPanel.js';
 import { EarthLab } from './earth/earthlab.js';
 import { EarthPanel } from './ui/earthPanel.js';
+import { SpmLab } from './spm/spmlab.js';
+import { SpmPanel } from './ui/spmPanel.js';
 import { LightLab } from './light/lightlab.js';
 import { LightPanel } from './ui/lightPanel.js';
 import { GravityLab } from './gravity/gravitylab.js';
@@ -396,20 +398,19 @@ async function init() {
 
   const mathlab = new MathLab(scene);
   const earthlab = new EarthLab(scene, getTexture);
+  const spmlab = new SpmLab(scene);
   const lightlab = new LightLab(scene);
   const gravitylab = new GravityLab(scene, getTexture);
   const photolab = new PhotoLab(scene);
   const fractallab = new FractalLab(scene);
   const tabState = {
     mode: 'solar',
-    cams: { solar: null, math: null, earth: null, light: null, gravity: null, photo: null, fractal: null },
+    cams: { solar: null, math: null, spm: null, earth: null, light: null, gravity: null, photo: null, fractal: null },
   };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
-  const EARTH_HOMES = {
-    planet: { pos: new THREE.Vector3(-118, 64, -118), target: new THREE.Vector3(0, 0, 0) },
-    mooring: { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(0, -8, 0) },
-  };
+  const SPM_HOME = { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(0, -8, 0) };
+  const EARTH_HOME = { pos: new THREE.Vector3(-118, 64, -118), target: new THREE.Vector3(0, 0, 0) };
   const LIGHT_HOME = { pos: new THREE.Vector3(20, 30, 240), target: new THREE.Vector3(30, 5, 0) };
   const GRAVITY_HOME = { pos: new THREE.Vector3(16, 22, 26), target: new THREE.Vector3(0, -2, 0) };
   const PHOTO_HOMES = {
@@ -420,7 +421,7 @@ async function init() {
   const FRACTAL_IFS_HOME = { pos: new THREE.Vector3(0, 0, 32), target: new THREE.Vector3(0, 0, 0) };
 
   function setMode(mode, { fromUrl = false } = {}) {
-    if (!mode || !['solar', 'math', 'earth', 'light', 'gravity', 'photo', 'fractal'].includes(mode)) {
+    if (!mode || !['solar', 'math', 'spm', 'earth', 'light', 'gravity', 'photo', 'fractal'].includes(mode)) {
       mode = 'solar';
     }
     if (mode === tabState.mode) {
@@ -433,6 +434,7 @@ async function init() {
     tabState.mode = mode;
     document.body.dataset.mode = mode;
     const isMath = mode === 'math';
+    const isSpm = mode === 'spm';
     const isEarth = mode === 'earth';
     const isLight = mode === 'light';
     const isGravity = mode === 'gravity';
@@ -444,6 +446,7 @@ async function init() {
     focusCtl.anim = null;
     solarRoot.visible = isSolar;
     mathlab.group.visible = isMath;
+    spmlab.group.visible = isSpm;
     earthlab.group.visible = isEarth;
     lightlab.group.visible = isLight;
     gravitylab.group.visible = isGravity;
@@ -483,6 +486,7 @@ async function init() {
     document.getElementById('timebar').classList.toggle('hidden', !isSolar);
     document.getElementById('math-timebar').classList.toggle('hidden', !isMath);
     document.getElementById('equation-panel').classList.toggle('hidden', !isMath);
+    document.getElementById('spm-panel').classList.toggle('hidden', !isSpm);
     document.getElementById('earth-panel').classList.toggle('hidden', !isEarth);
     document.getElementById('light-panel').classList.toggle('hidden', !isLight);
     document.getElementById('gravity-panel').classList.toggle('hidden', !isGravity);
@@ -496,6 +500,7 @@ async function init() {
     if (!isSolar && ui) ui.closeInfo();
     document.getElementById('tab-solar').classList.toggle('active', isSolar);
     document.getElementById('tab-math').classList.toggle('active', isMath);
+    document.getElementById('tab-spm').classList.toggle('active', isSpm);
     document.getElementById('tab-earth').classList.toggle('active', isEarth);
     document.getElementById('tab-light').classList.toggle('active', isLight);
     document.getElementById('tab-gravity').classList.toggle('active', isGravity);
@@ -509,10 +514,12 @@ async function init() {
     } else if (isMath) {
       camera.position.copy(MATH_HOME.pos);
       controls.target.copy(MATH_HOME.target);
+    } else if (isSpm) {
+      camera.position.copy(SPM_HOME.pos);
+      controls.target.copy(SPM_HOME.target);
     } else if (isEarth) {
-      const home = EARTH_HOMES[earthlab.submode];
-      camera.position.copy(home.pos);
-      controls.target.copy(home.target);
+      camera.position.copy(EARTH_HOME.pos);
+      controls.target.copy(EARTH_HOME.target);
     } else if (isLight) {
       const cam = lightlab.preset?.camera || LIGHT_HOME;
       camera.position.fromArray(cam.pos);
@@ -551,6 +558,7 @@ async function init() {
       setMode(mode);
     });
   }
+  bindTab('tab-spm', 'spm');
   bindTab('tab-solar', 'solar');
   bindTab('tab-math', 'math');
   bindTab('tab-earth', 'earth');
@@ -565,17 +573,19 @@ async function init() {
   function captureTag() {
     return tabState.mode === 'math'
       ? `${(eqPanel.cfg && eqPanel.cfg.id) || 'equation'}-tau${mathlab.tau.toFixed(1)}`
-      : tabState.mode === 'earth'
-        ? `earth-${earthlab.submode}-t${Math.round(earthlab.sim.t)}`
-        : tabState.mode === 'light'
-          ? `light-${(lightlab.preset && lightlab.preset.id) || 'optics'}-r${lightlab.rays.length}`
-          : tabState.mode === 'gravity'
-            ? `gravity-${(gravitylab.preset && gravitylab.preset.id) || 'orbit'}-t${Math.round(gravitylab.sim.t)}`
-            : tabState.mode === 'photo'
-              ? `photo-${photolab.submode}-t${Math.round(photolab.t)}`
-              : tabState.mode === 'fractal'
-                ? `fractal-${(fractallab.preset && fractallab.preset.id) || 'set'}-s${Number(fractallab.params.scale || 0).toExponential(1)}`
-              : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      : tabState.mode === 'spm'
+        ? `spm-${spmlab.sim.mode}-t${Math.round(spmlab.sim.t)}`
+        : tabState.mode === 'earth'
+          ? `earth-planet`
+          : tabState.mode === 'light'
+            ? `light-${(lightlab.preset && lightlab.preset.id) || 'optics'}-r${lightlab.rays.length}`
+            : tabState.mode === 'gravity'
+              ? `gravity-${(gravitylab.preset && gravitylab.preset.id) || 'orbit'}-t${Math.round(gravitylab.sim.t)}`
+              : tabState.mode === 'photo'
+                ? `photo-${photolab.submode}-t${Math.round(photolab.t)}`
+                : tabState.mode === 'fractal'
+                  ? `fractal-${(fractallab.preset && fractallab.preset.id) || 'set'}-s${Number(fractallab.params.scale || 0).toExponential(1)}`
+                : clock.date.toISOString().slice(0, 19).replace(/[:T]/g, '-');
   }
 
   // PNG snapshot of the rendered scene.
@@ -603,6 +613,7 @@ async function init() {
   function getTraceSnapshot() {
     const mode = tabState.mode;
     if (mode === 'math') return mathlab.traceSnapshot();
+    if (mode === 'spm') return spmlab.traceSnapshot();
     if (mode === 'gravity') return gravitylab.traceSnapshot();
     if (mode === 'light') return lightlab.traceSnapshot();
     if (mode === 'earth') return earthlab.traceSnapshot();
@@ -681,15 +692,8 @@ async function init() {
   });
   mathlab.onFollowRequest = () => focusCtl.focus(mathlab.focusRec);
 
-  const earthPanel = new EarthPanel(earthlab, {
-    setSubmode: (m) => {
-      earthlab.setSubmode(m);
-      if (tabState.mode === 'earth') {
-        const home = EARTH_HOMES[m];
-        focusCtl.overview(home.pos, home.target);
-      }
-    },
-  });
+  const spmPanel = new SpmPanel(spmlab);
+  const earthPanel = new EarthPanel(earthlab);
 
   const lightPanel = new LightPanel(lightlab, {
     frameView: (cam) => {
@@ -815,15 +819,19 @@ async function init() {
       if (focusCtl.target) focusCtl.release();
       else eqPanel.h.frameView(eqPanel.cfg && eqPanel.cfg.camera);
     },
+    isSpm: () => tabState.mode === 'spm',
+    spmStatus: () => spmlab.status(),
+    spmPlayPause: () => spmPanel.togglePause(),
+    spmEscape: () => {
+      if (focusCtl.target) focusCtl.release();
+      else focusCtl.overview(SPM_HOME.pos, SPM_HOME.target);
+    },
+    openSpmLab: () => setMode('spm'),
     isEarth: () => tabState.mode === 'earth',
     earthStatus: () => earthlab.status(),
-    earthPlayPause: () => earthPanel.togglePause(),
     earthEscape: () => {
       if (focusCtl.target) focusCtl.release();
-      else {
-        const home = EARTH_HOMES[earthlab.submode];
-        focusCtl.overview(home.pos, home.target);
-      }
+      else focusCtl.overview(EARTH_HOME.pos, EARTH_HOME.target);
     },
     openEarthLab: () => setMode('earth'),
     isLight: () => tabState.mode === 'light',
@@ -905,7 +913,7 @@ async function init() {
     if (dx * dx + dy * dy > 36) return;
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 
-    if (tabState.mode === 'earth' && earthlab.submode === 'planet') {
+    if (tabState.mode === 'earth' && earthlab.layerPickables) {
       layerRaycaster.setFromCamera(ndc, camera);
       const hits = layerRaycaster.intersectObjects(earthlab.layerPickables, false);
       if (hits.length) earthPanel.selectLayer(hits[0].object.userData.layerId);
@@ -1063,7 +1071,20 @@ async function init() {
       return;
     }
 
-    // Earth Lab tab: cutaway planet or real-time SPM mooring simulation
+    // SPM Mooring tab: stand-alone / coupled catenary module
+    if (tabState.mode === 'spm') {
+      spmlab.update(dt);
+      spmPanel.tick(dt);
+      focusCtl.update(dt);
+      controls.update();
+      ui.tick(dt);
+      composer.render();
+      labelRenderer.render(scene, camera);
+      recorder.tick();
+      return;
+    }
+
+    // Earth Lab tab: cutaway planet interior
     if (tabState.mode === 'earth') {
       earthlab.update(dt);
       earthPanel.tick(dt);
@@ -1215,12 +1236,12 @@ async function init() {
   loading.classList.add('done');
   setTimeout(() => loading.remove(), 900);
 
-  // Open the instrument named by the URL (/, /equation, /earth, ...)
+  // Open the instrument named by the URL (/, /spm, /equation, /earth, ...)
   const bootMode = modeFromLocation();
   setMode(bootMode, { fromUrl: true });
 
   // debugging handle for automated checks
-  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, fractallab, fractalPanel, recorder };
+  window.__solar = { clock, byId, system, focusCtl, camera, sun, comet, nbody, physics, enterPhysics, exitPhysics, mathlab, eqPanel, setMode, spmlab, spmPanel, earthlab, earthPanel, lightlab, lightPanel, gravitylab, gravityPanel, photolab, photoPanel, fractallab, fractalPanel, recorder };
 }
 
 init();

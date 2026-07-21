@@ -1177,6 +1177,7 @@ input[type='range']::-moz-range-thumb {
 
   #math-timebar,
   #equation-panel,
+  #spm-panel,
   #earth-panel,
   #light-panel,
   #gravity-panel,
@@ -1190,6 +1191,7 @@ input[type='range']::-moz-range-thumb {
   /* Deep-linked labs stay usable on small screens */
   body.is-mobile[data-mode="math"] #equation-panel,
   body.is-mobile[data-mode="math"] #math-timebar { display: block !important; }
+  body.is-mobile[data-mode="spm"] #spm-panel { display: block !important; }
   body.is-mobile[data-mode="earth"] #earth-panel { display: block !important; }
   body.is-mobile[data-mode="light"] #light-panel { display: block !important; }
   body.is-mobile[data-mode="gravity"] #gravity-panel { display: block !important; }
@@ -1197,6 +1199,7 @@ input[type='range']::-moz-range-thumb {
   body.is-mobile[data-mode="fractal"] #fractal-panel { display: block !important; }
 
   body.is-mobile[data-mode="math"] #equation-panel,
+  body.is-mobile[data-mode="spm"] #spm-panel,
   body.is-mobile[data-mode="earth"] #earth-panel,
   body.is-mobile[data-mode="light"] #light-panel,
   body.is-mobile[data-mode="gravity"] #gravity-panel,
@@ -1210,6 +1213,7 @@ input[type='range']::-moz-range-thumb {
     max-height: min(52vh, 480px);
   }
   body.is-mobile[data-mode="math"] #timebar,
+  body.is-mobile[data-mode="spm"] #timebar,
   body.is-mobile[data-mode="earth"] #timebar,
   body.is-mobile[data-mode="light"] #timebar,
   body.is-mobile[data-mode="gravity"] #timebar,
@@ -1241,12 +1245,66 @@ input[type='range']::-moz-range-thumb {
 #earth-panel {
   top: 64px;
   right: 16px;
+  width: 340px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-bottom: 16px;
+  z-index: 30;
+}
+
+/* ---------- SPM mooring module ---------- */
+
+#spm-panel {
+  top: 64px;
+  right: 16px;
   width: 680px;
   max-height: calc(100vh - 110px);
   overflow-y: auto;
   padding-bottom: 16px;
   z-index: 30;
 }
+
+.spm-chain-status {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px 18px 8px;
+}
+
+.spm-leg-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.spm-leg-btn .spm-leg-n { font-weight: 600; font-size: 12px; }
+.spm-leg-btn .spm-leg-ang { font-size: 11px; color: var(--text-dim); }
+.spm-leg-btn .spm-leg-st {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-cool);
+}
+
+.spm-leg-btn.off {
+  opacity: 0.85;
+  border-color: rgba(255, 138, 106, 0.45);
+  background: rgba(255, 90, 74, 0.08);
+}
+
+.spm-leg-btn.off .spm-leg-st { color: #ff8a6a; }
+
+.spm-table tr.spm-off td {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.spm-modes { margin: 4px 18px 8px; }
 
 .earth-modes { padding-top: 4px; }
 .earth-modes button.active {

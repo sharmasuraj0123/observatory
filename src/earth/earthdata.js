@@ -88,7 +88,7 @@ export const EXTRAS = [
       'Heat storage': 'absorbs ~90% of excess greenhouse heat',
       'CO₂ uptake': 'absorbs roughly a quarter of human emissions',
     },
-    description: 'One connected world ocean. Surface currents like the Gulf Stream (up to 2.5 m/s) move heat poleward, while the deep thermohaline circulation takes roughly a thousand years for one full loop. Tides are the Moon\'s gravity made visible. The SPM mooring simulation in this tab plays out on the thin, energetic skin of this layer.',
+    description: 'One connected world ocean. Surface currents like the Gulf Stream (up to 2.5 m/s) move heat poleward, while the deep thermohaline circulation takes roughly a thousand years for one full loop. Tides are the Moon\'s gravity made visible.',
   },
   {
     id: 'land', name: 'Land',
@@ -113,7 +113,7 @@ export const EXTRAS = [
       'Thermosphere': '85 to 600 km: aurora, ISS at ~400 km',
       'Exosphere': '600 to ~10,000 km: atoms escaping to space',
     },
-    description: 'A film of gas thinner, proportionally, than condensation on a window. Half its mass lies below 5.5 km. It burns up about 50 tonnes of meteoroids a day, carries the weather that loads the mooring chains below, and its oxygen exists only because of life.',
+    description: 'A film of gas thinner, proportionally, than condensation on a window. Half its mass lies below 5.5 km. It burns up about 50 tonnes of meteoroids a day, carries the weather, and its oxygen exists only because of life.',
   },
   {
     id: 'magnetic', name: 'Magnetic field',
