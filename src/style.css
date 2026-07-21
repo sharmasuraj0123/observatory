@@ -1306,6 +1306,112 @@ input[type='range']::-moz-range-thumb {
 
 .spm-modes { margin: 4px 18px 8px; }
 
+.spm-viz { margin: 4px 18px 8px; }
+
+.spm-modtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 18px;
+  padding: 0;
+}
+
+.spm-modtabs button {
+  flex: 1 1 auto;
+  min-width: 70px;
+}
+
+.spm-plan {
+  display: block;
+  width: calc(100% - 36px);
+  max-width: 640px;
+  height: auto;
+  margin: 4px 18px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0b1520;
+}
+
+.spm-tab { padding-bottom: 8px; }
+
+/* Floating / draggable panels */
+.panel-float {
+  position: fixed;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.panel-drag-handle {
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.panel-float.is-dragging,
+.panel-float.is-dragging .panel-drag-handle {
+  cursor: grabbing;
+}
+
+.panel-drag-hint {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.panel-float.is-dragging {
+  opacity: 0.92;
+  z-index: 80;
+}
+
+/* Live recording description (drives burn-in HUD placement) */
+.rec-desc-floater {
+  position: fixed;
+  z-index: 90;
+  min-width: 220px;
+  max-width: min(420px, 55vw);
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 170, 255, 0.28);
+  background: rgba(9, 13, 24, 0.88);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+  color: #d7dfef;
+  pointer-events: auto;
+}
+
+.rec-desc-head {
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid rgba(140, 170, 255, 0.14);
+}
+
+.rec-desc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffb0b0;
+}
+
+.rec-desc-body {
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow: auto;
+  color: #d7dfef;
+}
+
+.rec-desc-note {
+  padding: 0 12px 10px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
 .earth-modes { padding-top: 4px; }
 .earth-modes button.active {
   background: rgba(255, 180, 84, 0.16);

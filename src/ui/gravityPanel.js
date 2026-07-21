@@ -1,6 +1,7 @@
 // Gravity Lab panel: classical orbital presets + pedagogical quantum-gravity
 // models, live force-law controls, and particle-by-particle orbital analysis.
 
+import { makePanelDraggable } from './dragPanel.js';
 import { QG_MODES } from '../gravity/quantum.js';
 
 function fmt(x, digits = 3) {
@@ -49,6 +50,7 @@ export class GravityPanel {
     this.sortDir = 1;
     this.filter = 'tracers';
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-gravity-panel-pos' });
     lab.onSelect = () => this.renderDetail();
   }
 

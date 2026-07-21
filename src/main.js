@@ -409,7 +409,8 @@ async function init() {
   };
 
   const MATH_HOME = { pos: new THREE.Vector3(70, 50, 95), target: new THREE.Vector3(0, 24, 0) };
-  const SPM_HOME = { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(0, -8, 0) };
+  const SPM_HOME = { pos: new THREE.Vector3(200, 130, 270), target: new THREE.Vector3(90, -8, 0) };
+  const SPM_HOME_2D = { pos: new THREE.Vector3(90, 520, 0.1), target: new THREE.Vector3(90, -8, 0) };
   const EARTH_HOME = { pos: new THREE.Vector3(-118, 64, -118), target: new THREE.Vector3(0, 0, 0) };
   const LIGHT_HOME = { pos: new THREE.Vector3(20, 30, 240), target: new THREE.Vector3(30, 5, 0) };
   const GRAVITY_HOME = { pos: new THREE.Vector3(16, 22, 26), target: new THREE.Vector3(0, -2, 0) };
@@ -692,7 +693,13 @@ async function init() {
   });
   mathlab.onFollowRequest = () => focusCtl.focus(mathlab.focusRec);
 
-  const spmPanel = new SpmPanel(spmlab);
+  const spmPanel = new SpmPanel(spmlab, {
+    onVizMode: (mode) => {
+      if (tabState.mode !== 'spm') return;
+      const home = mode === '2d' ? SPM_HOME_2D : SPM_HOME;
+      focusCtl.overview(home.pos, home.target);
+    },
+  });
   const earthPanel = new EarthPanel(earthlab);
 
   const lightPanel = new LightPanel(lightlab, {
@@ -824,7 +831,10 @@ async function init() {
     spmPlayPause: () => spmPanel.togglePause(),
     spmEscape: () => {
       if (focusCtl.target) focusCtl.release();
-      else focusCtl.overview(SPM_HOME.pos, SPM_HOME.target);
+      else {
+        const home = spmlab.vizMode === '2d' ? SPM_HOME_2D : SPM_HOME;
+        focusCtl.overview(home.pos, home.target);
+      }
     },
     openSpmLab: () => setMode('spm'),
     isEarth: () => tabState.mode === 'earth',

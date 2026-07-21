@@ -5,6 +5,7 @@
 
 import { createOverlayPainter } from './overlay.js';
 import { createDataTrace, hudFromSnapshot } from './datatrace.js';
+import { createRecDescFloater } from '../ui/dragPanel.js';
 
 export const RECORD_MAX_MS = 10_000;
 
@@ -48,6 +49,7 @@ export function createRecorder({
 }) {
   const painter = createOverlayPainter();
   const dataTrace = createDataTrace({ sampleHz: 10 });
+  const descFloater = createRecDescFloater();
   let mediaRecorder = null;
   let chunks = [];
   let stream = null;
@@ -73,6 +75,12 @@ export function createRecorder({
     const snap = getSnapshot ? getSnapshot() : null;
     const recSec = recording ? (performance.now() - startedAt) / 1000 : 0;
     const hud = hudFromSnapshot(snap, recSec, RECORD_MAX_MS / 1000);
+    if (recording) {
+      const pos = descFloater.getNormPos();
+      hud.nx = pos.nx;
+      hud.ny = pos.ny;
+      descFloater.setContent(hud);
+    }
     painter.paint(sourceCanvas, hud);
     // Chrome: push an explicit frame into captureStream(0)
     if (videoTrack && typeof videoTrack.requestFrame === 'function') {
@@ -96,6 +104,7 @@ export function createRecorder({
     if (!mediaRecorder) {
       recording = false;
       painter.unlock();
+      descFloater.hide();
       onStateChange?.(false);
       return;
     }
@@ -105,6 +114,7 @@ export function createRecorder({
     } else {
       recording = false;
       painter.unlock();
+      descFloater.hide();
       onStateChange?.(false);
     }
   }
@@ -201,6 +211,7 @@ export function createRecorder({
       if (report && report.frames.length) {
         setTimeout(() => dataTrace.downloadAll(report, basename), 400);
       }
+      descFloater.hide();
       onStateChange?.(false);
       setTimeout(() => onReport?.(report), 500);
     };
@@ -219,6 +230,7 @@ export function createRecorder({
 
     recording = true;
     startedAt = performance.now();
+    descFloater.show();
     // Push a couple of frames so the encoder has content immediately
     paintFrame();
     requestAnimationFrame(() => { if (recording) paintFrame(); });

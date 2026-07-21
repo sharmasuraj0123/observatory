@@ -1,5 +1,6 @@
 // Earth Lab panel: interior layer explorer (PREM cutaway).
 
+import { makePanelDraggable } from './dragPanel.js';
 import { LAYERS, EXTRAS, EARTH_FACTS } from '../earth/earthdata.js';
 
 export class EarthPanel {
@@ -7,6 +8,7 @@ export class EarthPanel {
     this.lab = lab;
     this.el = document.getElementById('earth-panel');
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-earth-panel-pos' });
     this.selectLayer('innerCore');
   }
 

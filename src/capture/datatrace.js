@@ -183,6 +183,8 @@ export function hudFromSnapshot(snap, recSec, recMaxSec) {
     lines.push(snap.name || 'Light Lab');
   } else if (snap.mode === 'earth') {
     lines.push(snap.name || 'Earth Lab');
+  } else if (snap.mode === 'spm') {
+    lines.push(snap.name || 'SPM-Tanker mooring');
   } else {
     lines.push(snap.name || 'Solar system');
   }

@@ -1,6 +1,7 @@
 // Light Lab panel: preset picker, live optical parameters, and a detailed
 // ray-by-ray analysis table with a per-ray event inspector.
 
+import { makePanelDraggable } from './dragPanel.js';
 import { criticalAngleDeg, indexOf, MATERIALS } from '../light/optics.js';
 
 function fmtAngle(a) {
@@ -35,6 +36,7 @@ export class LightPanel {
     this.sortDir = 1;
     this.filter = 'all'; // all | detected | tir | selected
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-light-panel-pos' });
     lab.onSelect = () => this.renderDetail();
   }
 

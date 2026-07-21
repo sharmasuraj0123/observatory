@@ -603,12 +603,15 @@ export class UI {
       <span>H</span><span>this help</span>`;
     const spmGrid = `
       <span>Drag / scroll</span><span>orbit and zoom</span>
-      <span>Space</span><span>pause / resume coupled simulation</span>
+      <span>Space</span><span>pause / resume Master RK45</span>
+      <span>3D / 2D</span><span>switch visualization mode</span>
+      <span>Modules</span><span>SPM · Tanker OCIMF · Hawser/Tug · Master I/O</span>
       <span>Leg buttons</span><span>toggle 1 to 2 chains OFF for maintenance</span>
-      <span>Stand-alone</span><span>static displacement or Find equilibrium</span>
-      <span>Export CSV</span><span>download tensions and F_X, F_Y</span>
+      <span>Stand-alone</span><span>query each module without the ODE</span>
+      <span>Export CSV</span><span>full workbook + 10-value state history</span>
+      <span>Drag title</span><span>move the floating panel (useful while recording)</span>
       <span>S</span><span>snapshot PNG</span>
-      <span>V</span><span>record video + data trace (max 10s, XO HUD)</span>
+      <span>V</span><span>record video + data trace (max 10s); drag the description box while REC</span>
       <span>Esc</span><span>reframe the view</span>
       <span>H</span><span>this help</span>`;
     const earthGrid = `
@@ -663,7 +666,7 @@ export class UI {
     const sub = math
       ? 'The Equation Lab moves particles through space + time under your equations: parametric curves, velocity fields, force fields and animated surfaces, integrated with RK4. Trails fade backward along the time axis.'
       : spm
-        ? 'SPM Mooring Module: quasi-static catenary array with stand-alone or coupled analysis, asymmetric chain maintenance (up to 2 legs OFF), and net restoring F_X, F_Y on the buoy centre.'
+        ? 'SPM-Tanker Mooring Simulator: modular SPM catenary, Tanker OCIMF weather loads, Hawser/Tug snap-load linkage, and Master adaptive RK45 (5 DOF, 10-value state). Stand-alone or coupled; 3D or 2D top-down.'
         : earth
           ? 'Earth Lab: a true-scale cutaway of the planet (PREM layer radii, dipole field lines).'
           : light
@@ -678,7 +681,7 @@ export class UI {
     const tip = math
       ? 'Try it: load the Lorenz attractor and drag b below 24 to watch chaos collapse into a fixed point. Or load Kepler orbits: the same inverse-square law as the solar tab.'
       : spm
-        ? 'Try it: turn Leg 1 and Leg 2 OFF, switch to Stand-alone, press Find equilibrium, and watch F_X / F_Y and the tension table shift onto the remaining four chains.'
+        ? 'Try it: raise wind to 25 m/s, set tug pull-back to 400 kN, turn Leg 1 OFF, and watch hawser tension and SPM F_X/F_Y on the Master I/O tab. Switch to 2D top-down for the plan vector plot.'
         : earth
           ? 'Try it: click the outer core, then toggle magnetic field lines to see the dipole tilt relative to the crust.'
           : light

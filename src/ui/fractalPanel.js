@@ -1,5 +1,6 @@
 // Fractals Lab panel: destinations, live explorer controls, probe, analysis.
 
+import { makePanelDraggable } from './dragPanel.js';
 import { fmtComplex } from '../fractal/fractals.js';
 
 function fmt(n, d = 4) {
@@ -18,6 +19,7 @@ export class FractalPanel {
     this.el = document.getElementById('fractal-panel');
     this.liveAcc = 0;
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-fractal-panel-pos' });
     lab.onProbe = () => this.renderProbe();
   }
 

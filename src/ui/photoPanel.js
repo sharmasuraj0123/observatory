@@ -1,5 +1,6 @@
 // Photo Lab panel: photoelectric effect workbench + photosynthesis explorer.
 
+import { makePanelDraggable } from './dragPanel.js';
 import {
   METALS, PIGMENTS, sampleSpectrum, actionSpectrum, leafAbsorb,
 } from '../photo/photoPhysics.js';
@@ -16,6 +17,7 @@ export class PhotoPanel {
     this.el = document.getElementById('photo-panel');
     this.liveAcc = 0;
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-photo-panel-pos' });
   }
 
   build() {

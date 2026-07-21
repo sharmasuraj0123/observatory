@@ -2,6 +2,7 @@
 // with inline errors, parameter sliders that morph the system while it runs,
 // motion controls and a live state readout.
 
+import { makePanelDraggable } from './dragPanel.js';
 import { MATH_PRESETS, CUSTOM_TEMPLATE } from '../math/presets.js';
 import { EXPR_HELP } from '../math/expr.js';
 import { parseDataset, fitDataset, SAMPLE_DATA } from '../math/datafit.js';
@@ -29,6 +30,7 @@ export class EquationPanel {
     this.debounce = null;
     this.liveAcc = 0;
     this.build();
+    makePanelDraggable(this.el, { handleSelector: '.list-title', storageKey: 'observatory-equation-panel-pos' });
     // no camera framing at construction time: the app may still be showing
     // the solar tab, and flying its camera to math coordinates parks it
     // inside the Sun

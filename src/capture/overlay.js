@@ -133,8 +133,17 @@ export function createOverlayPainter() {
       const lineH = fontSize + 5;
       const boxH = lines.length * lineH + 20;
       const boxW = Math.min(w * 0.55, maxW + 28);
-      const bx = pad;
-      const by = h - pad - boxH;
+      // Place from normalized viewport coords when provided (draggable floater)
+      const nx = hud.nx != null ? hud.nx : null;
+      const ny = hud.ny != null ? hud.ny : null;
+      let bx = pad;
+      let by = h - pad - boxH;
+      if (nx != null && ny != null) {
+        bx = Math.round(nx * w);
+        by = Math.round(ny * h);
+        bx = Math.max(pad, Math.min(w - boxW - pad, bx));
+        by = Math.max(pad, Math.min(h - boxH - pad, by));
+      }
       ctx.fillStyle = 'rgba(9, 13, 24, 0.72)';
       roundRect(ctx, bx, by, boxW, boxH, 10);
       ctx.fill();
